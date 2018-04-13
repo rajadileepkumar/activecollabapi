@@ -1,0 +1,56 @@
+.postbox-container{
+	margin: 20px 0;
+}
+.postbox{
+	margin: 0 5px;
+	width: 330px;
+}
+h2.hndle.ui-sortable-handle {
+    padding: 10px 15px;
+    margin: 0;
+    font-size: 1.3em;
+}
+
+.postbox .inside{
+	padding: 0;
+	border-top: 1px solid #B8D6FF;
+	border-bottom: 1px solid #B8D6FF;
+	margin: 0;
+}
+.postbox .hndle, .stuffbox .hndle{
+	border-bottom: none;
+}
+.task{
+	border-bottom: 1px solid #e7e7e7;
+	padding: 15px;
+	cursor: pointer;
+}
+.task:last-child{
+	border-bottom: none;
+}
+.task-name{
+	font-weight: 500;
+}
+/* .task-icons:not(.task-label){
+	padding: 0;
+} */
+.task-name,.task-assign{
+	display: block;
+	padding: 5px 0;
+}
+
+.task .dashicons-editor-ul::before{
+	position: relative;
+	top: 3px;
+}
+
+.task-label + .task-icons{
+	padding-left: 5px;
+}
+
+@media (max-width: 760px){
+	.postbox{
+		width: 100%;
+		margin: 0;
+	}
+}
