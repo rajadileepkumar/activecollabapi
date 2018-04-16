@@ -4,6 +4,7 @@
 .postbox{
 	margin: 0 5px;
 	width: 330px;
+	float: left;
 }
 h2.hndle.ui-sortable-handle {
     padding: 10px 15px;
