@@ -16,7 +16,7 @@ class ActiveCollabAPI{
 
 	function __construct(){
 		add_action( 'admin_menu', array($this,'a_collab_menu'), 10, 1 ); //admin menu
-		add_action( 'admin_enqueue_scripts', array($this,'a_collab_scripts'), 10, 1 ); //load scripts
+		//add_action( 'admin_enqueue_scripts', array($this,'a_collab_scripts'), 10, 1 ); //load scripts
 		//add_action( 'wp_ajax_nopriv_a_tokenIdValidate', array($this,'a_tokenIdValidate')); //insert and validate
 		//add_action( 'wp_ajax_a_tokenIdValidate', array($this,'a_tokenIdValidate'));//insert and validate
 		add_action( 'admin_bar_menu', array($this,'a_toolbar_link_page'),999);//add admin node
@@ -87,10 +87,11 @@ class ActiveCollabAPI{
 			$option_exists = (get_option($optionName, null) !== null);
 			if($option_exists){
 				update_option( $optionName, $active_Serilizedarray, 'yes');
-				echo "Updated";
+				self::a_configuration_settings();
 			}
 			else{
 				add_option($optionName, $active_Serilizedarray, '', 'yes');
+				self::a_configuration_settings();
 				echo "Inserted";
 			}
 		}
@@ -152,29 +153,22 @@ class ActiveCollabAPI{
 	}
 
 	function a_collab_menu_page(){
-		global $wpdb;
-		$userId = get_current_user_id();
-		$optionName = 'active_collab_setting_'.$userId; 
-		$settings =get_option($optionName, false);
-		$active_Unserilizedarry = unserialize($settings);
-		
-		$authenticator = new \ActiveCollab\SDK\Authenticator\Cloud($active_Unserilizedarry['2'], 'My Awesome Application',$active_Unserilizedarry['3'],$active_Unserilizedarry['4']);
 
-		$token = $authenticator->issueToken((int) $active_Unserilizedarry['1']);
+		$token = self::a_configuration_settings();
 		$client;
 		if($token){
-			$client = new \ActiveCollab\SDK\Client($token);
-			$user = $authenticator->getUser();
-			$projectName = $client->get('projects/'.$active_Unserilizedarry['5'])->getJson();
-			
+			$client = new \ActiveCollab\SDK\Client($token['0']); 
+			$projectName = $client->get('projects/'.$token['1'])->getJson();
+			$user = $token['2'];
 		}
+
 		?>
 			<div class="wrap">
-				<h2>Active Collab<sub>/ <?php echo $user['first_name'].$user['last_name'];?></sub><sub>/ <?php echo $projectName['single']['name']; ?></sub>
+				<h2>Active Collab<sub>/<?php echo $user['first_name']." ".$user['last_name'];?><sub>/ <?php echo $projectName['single']['name']; ?></sub>
 				</h2>
 				<div class="postbox-container">
 					<?php
-						$taskList = $client->get('projects/'.$active_Unserilizedarry['5'].'/tasks')->getJson();
+						$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
 						//print_r($taskList);
 						$taskarray = array();
 						foreach ($taskList['tasks'] as $tsklist) {
@@ -184,6 +178,7 @@ class ActiveCollabAPI{
 							$taskarray[$tsklist['name']]['assignee_name'] = $tsklist['fake_assignee_name'];
 							$taskarray[$tsklist['name']]['open_sub_task'] = $tsklist['open_subtasks'];
 							$taskarray[$tsklist['name']]['task_url_path'] = $tsklist['url_path'];
+							$taskarray[$tsklist['name']]['close_sub_task'] = $tsklist['completed_subtasks'];
 						}
 						//var_dump($taskarray);
 						foreach ($taskList['task_lists'] as $list) {
@@ -205,7 +200,7 @@ class ActiveCollabAPI{
 														if(!empty($value['assignee_name'])){
 															$assignee = $value['assignee_name'];	
 														}
-														echo '<div data-toggle="modal" class="task" href="'.$value['task_url_path'].'" data-target="#tasklist-'.$value['taskid'].'-'.$taskclass.'">';
+														echo '<div data-toggle="modal" class="task" data-target="#tasklist-'.$value['taskid'].'-'.$taskclass.'">';
 															
 															echo '<span class="task-name">'.$key.'<sub>-'.$assignee.'</span>';
 															
@@ -216,6 +211,10 @@ class ActiveCollabAPI{
 															if(!empty($value['open_sub_task'])){
 																echo '<span class="task-icons dashicons dashicons-editor-ul">'.$value['open_sub_task'].'</span>';
 															}
+
+															/*if(!empty($value['close_sub_task'])){
+																echo '<span class="task-icons dashicons dashicons-editor-ul">'.$value['close_sub_task'].'</span>';
+															}*/
 															
 														echo '</div>';
 
@@ -233,20 +232,17 @@ class ActiveCollabAPI{
 															    	<div class="modal-body">
 															        	<h2><?php echo $key; ?></h2>
 															        	<?php
-															        		$subtask_List = $client->get($value['task_url_path'])->getJson();
-															        		//print_r($subtask_List['subtasks']);
+															        		
+															        		$subtask_List = $client->get($value['task_url_path'])->getJson();//subtasklist
+
 															        		$subtaskArray = array();
 															        		$commentsArray = array();
-															        		foreach ($subtask_List['subtasks'] as $slist) {
-															        			//$subtaskArray[$slist['name']]['name'] = $slist['name'];
-															        			//print_r($slist);
-															        			//echo $slist['is_completed'];
-															        			if($slist['is_completed'] == ''){
-															        					echo '<p>open task'.$slist['name'].'</p>';	
-															        				}
+															        		if(!empty($subtask_List['subtasks'])){
+															        			self::subtasks_tasks($subtask_List['subtasks']); //opentask	
 															        		}
-
-
+															        		if(!empty($subtask_List['comments'])){
+															        			self::subtasks_comments($subtask_List['comments']);//discussion	
+															        		}
 															        	?>
 															      	</div>
 															    	<div class="modal-footer">
@@ -270,22 +266,49 @@ class ActiveCollabAPI{
 	}
 
 	private function subtasks_tasks($subtask_List){
+		//print_r($subtask_List);
+		echo '<div class="subtasks">';
+			echo '<h4>Sub Tasks</h4>';
+    		foreach ($subtask_List as $slist) {
+    			if($slist['is_completed'] == ''){
+    				echo '<p>'.$slist['name'].'</p>';	
+    			}
+
+    			if($slist['is_completed'] != ''){
+    				echo '<div class="c-sub">';
+    					echo '<p>'.$slist['name'].'</p>';		
+    				echo '</div>';
+    			}
+
+    		}
+		echo '</div>';
+	}
+
+	private function subtasks_comments($comments){
+		echo '<div class="discussion">';
+			echo '<h4>Discussion</h4>';
+			echo '<ul>';
+    			foreach ($comments as $cmts) {
+    				echo '<li>'.$cmts['body_formatted'].'</li>';	
+    			}
+			echo '</ul>';
+		echo '</div>';
+	}
+
+	private function a_configuration_settings(){
 		global $wpdb;
 		$userId = get_current_user_id();
 		$optionName = 'active_collab_setting_'.$userId; 
 		$settings =get_option($optionName, false);
 		$active_Unserilizedarry = unserialize($settings);
-		
 		$authenticator = new \ActiveCollab\SDK\Authenticator\Cloud($active_Unserilizedarry['2'], 'My Awesome Application',$active_Unserilizedarry['3'],$active_Unserilizedarry['4']);
 
 		$token = $authenticator->issueToken((int) $active_Unserilizedarry['1']);
-		
-		if($token){
-			$client = new \ActiveCollab\SDK\Client($token);
-			$subtask_List = $client->get($subtask_List.'/subtasks')->getJson();
-			print_r($subtask_List);
-		}
+		$user = $authenticator->getUser();
+		return array($token,$active_Unserilizedarry['5'],$user);
 	}
+
+	
 }
 
 $obj = new ActiveCollabAPI();
