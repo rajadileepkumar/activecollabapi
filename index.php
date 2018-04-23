@@ -11,12 +11,14 @@
  * 
  * 
  */
+//define('WP_DEBUG', true);
+//ini_set('MAX_EXECUTION_TIME', 800000);
 require_once __DIR__ . '/vendor/autoload.php';
 class ActiveCollabAPI{
 
 	function __construct(){
 		add_action( 'admin_menu', array($this,'a_collab_menu'), 10, 1 ); //admin menu
-		//add_action( 'admin_enqueue_scripts', array($this,'a_collab_scripts'), 10, 1 ); //load scripts
+		//add_action( 'admin_enqueue_scripts', array($this,'a_collab_custom_scripts'), 10, 1 ); //load scripts
 		//add_action( 'wp_ajax_nopriv_a_tokenIdValidate', array($this,'a_tokenIdValidate')); //insert and validate
 		//add_action( 'wp_ajax_a_tokenIdValidate', array($this,'a_tokenIdValidate'));//insert and validate
 		add_action( 'admin_bar_menu', array($this,'a_toolbar_link_page'),999);//add admin node
@@ -34,6 +36,7 @@ class ActiveCollabAPI{
 
 	}
 
+	
 	function a_collab_styles(){
 		wp_enqueue_style( 'bootstrap-css', plugins_url('assets/css/bootstrap.css', __FILE__));
 		wp_enqueue_style( 'custom-css', plugins_url('assets/css/custom.css', __FILE__));
@@ -169,7 +172,7 @@ class ActiveCollabAPI{
 				<div class="postbox-container">
 					<?php
 						$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
-						//print_r($taskList);
+						//print_r($taskList['tasks']);
 						$taskarray = array();
 						foreach ($taskList['tasks'] as $tsklist) {
 							$taskarray[$tsklist['name']]['taskid'] = $tsklist['task_list_id'];
@@ -179,6 +182,7 @@ class ActiveCollabAPI{
 							$taskarray[$tsklist['name']]['open_sub_task'] = $tsklist['open_subtasks'];
 							$taskarray[$tsklist['name']]['task_url_path'] = $tsklist['url_path'];
 							$taskarray[$tsklist['name']]['close_sub_task'] = $tsklist['completed_subtasks'];
+							$taskarray[$tsklist['name']]['job_type_id'] = $tsklist['job_type_id'];
 						}
 						//var_dump($taskarray);
 						foreach ($taskList['task_lists'] as $list) {
@@ -232,7 +236,7 @@ class ActiveCollabAPI{
 															    	<div class="modal-body">
 															        	<h2><?php echo $key; ?></h2>
 															        	<?php
-															        		
+															        		//echo "Job Type Id" .$value['job_type_id'];
 															        		$subtask_List = $client->get($value['task_url_path'])->getJson();//subtasklist
 
 															        		$subtaskArray = array();
@@ -243,6 +247,18 @@ class ActiveCollabAPI{
 															        		if(!empty($subtask_List['comments'])){
 															        			self::subtasks_comments($subtask_List['comments']);//discussion	
 															        		}
+															        		?>
+															        			<button class="button button-primary" data-toggle="collapse" data-target="#time-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">+Add Time</button>
+
+															        			<div id="time-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" class="collapse">
+															        				
+														        					<form>
+														        						<textarea rows="4" cols="50" class="form-control time-control recordingTime"  id = "text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Enter Time 1.30 or 1.5" required></textarea>
+														        					</form>
+														        					<button class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:locktime(this.id)">Add Time Record</button>
+															        			</div>
+															        		<?php
+
 															        	?>
 															      	</div>
 															    	<div class="modal-footer">
@@ -285,11 +301,29 @@ class ActiveCollabAPI{
 	}
 
 	private function subtasks_comments($comments){
+		//print_r($comments);
 		echo '<div class="discussion">';
 			echo '<h4>Discussion</h4>';
-			echo '<ul>';
+			echo '<ul class="comments">';
     			foreach ($comments as $cmts) {
-    				echo '<li>'.$cmts['body_formatted'].'</li>';	
+    				echo '<li>';
+    					echo '<p><a href="mailto:"'.$cmts['created_by_email'].'">'.$cmts['created_by_email'].'</a>';
+    						echo '<sub>'.gmdate('r', $cmts['updated_on']).'</sub>'; //date and time
+    					echo '</p>';
+    					echo '<p>'.$cmts['body_formatted'].'</p>';
+
+	    				if(!empty($cmts['attachments'])){
+					          //print_r($cmts['attachments']);
+				          foreach ($cmts['attachments'] as $value) {
+				           ?>
+				            <img src="<?php echo $value['preview_url']; ?>" class="img-thumbnail">
+				            <p><?php echo $value['name']; ?></p>
+				            <p><?php $size = $value['size']/1024; echo round($size,3).'KB'; ?></p>
+				            <p><a href="<?php echo $value['download_url']; ?>">Download</a></p>
+				           <?php
+				          }
+					    }
+					echo '</li>';
     			}
 			echo '</ul>';
 		echo '</div>';
