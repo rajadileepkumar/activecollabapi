@@ -172,7 +172,7 @@ class ActiveCollabAPI{
 				<div class="postbox-container">
 					<?php
 						$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
-						//print_r($taskList['tasks']);
+						print_r($taskList['tasks']);
 						$taskarray = array();
 						foreach ($taskList['tasks'] as $tsklist) {
 							$taskarray[$tsklist['name']]['taskid'] = $tsklist['task_list_id'];
@@ -255,7 +255,7 @@ class ActiveCollabAPI{
 														        					<form>
 														        						<textarea rows="4" cols="50" class="form-control time-control recordingTime"  id = "text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Enter Time 1.30 or 1.5" required></textarea>
 														        					</form>
-														        					<button class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:locktime(this.id)">Add Time Record</button>
+														        					<button class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:locktime(this.id,document.getElementById('text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>',).value,'<?php echo $value['job_type_id']?>')">Add Time Record</button>
 															        			</div>
 															        		<?php
 
