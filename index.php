@@ -19,8 +19,8 @@ class ActiveCollabAPI{
 	function __construct(){
 		add_action( 'admin_menu', array($this,'a_collab_menu'), 10, 1 ); //admin menu
 		//add_action( 'admin_enqueue_scripts', array($this,'a_collab_custom_scripts'), 10, 1 ); //load scripts
-		//add_action( 'wp_ajax_nopriv_a_tokenIdValidate', array($this,'a_tokenIdValidate')); //insert and validate
-		//add_action( 'wp_ajax_a_tokenIdValidate', array($this,'a_tokenIdValidate'));//insert and validate
+		add_action( 'wp_ajax_nopriv_a_registerTime', array($this,'a_registerTime')); //insert and validate
+		add_action( 'wp_ajax_a_registerTime', array($this,'a_registerTime'));//insert and validate
 		add_action( 'admin_bar_menu', array($this,'a_toolbar_link_page'),999);//add admin node
 
 	}
@@ -163,6 +163,7 @@ class ActiveCollabAPI{
 			$client = new \ActiveCollab\SDK\Client($token['0']); 
 			$projectName = $client->get('projects/'.$token['1'])->getJson();
 			$user = $token['2'];
+			$token_Id =  explode("-",$token['0']->getToken());//userid
 		}
 
 		?>
@@ -172,7 +173,6 @@ class ActiveCollabAPI{
 				<div class="postbox-container">
 					<?php
 						$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
-						print_r($taskList['tasks']);
 						$taskarray = array();
 						foreach ($taskList['tasks'] as $tsklist) {
 							$taskarray[$tsklist['name']]['taskid'] = $tsklist['task_list_id'];
@@ -193,7 +193,7 @@ class ActiveCollabAPI{
 											$task_list_id = $list['id'];
 											$task_list_total = $list['open_tasks']; //count of tasks
 										?>
-										<span><?php echo $list['name'];?> (<?php echo $task_list_total; ?>)</span>
+										<span><?php echo $list['name'];?> (<?php echo $task_list_total;?>)</span>
 									</h2>
 									<div class="inside">
 										<div class="main">
@@ -236,7 +236,7 @@ class ActiveCollabAPI{
 															    	<div class="modal-body">
 															        	<h2><?php echo $key; ?></h2>
 															        	<?php
-															        		//echo "Job Type Id" .$value['job_type_id'];
+															        		echo "Job Type Id" .$value['job_type_id'];
 															        		$subtask_List = $client->get($value['task_url_path'])->getJson();//subtasklist
 
 															        		$subtaskArray = array();
@@ -255,7 +255,7 @@ class ActiveCollabAPI{
 														        					<form>
 														        						<textarea rows="4" cols="50" class="form-control time-control recordingTime"  id = "text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Enter Time 1.30 or 1.5" required></textarea>
 														        					</form>
-														        					<button class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:locktime(this.id,document.getElementById('text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>',).value,'<?php echo $value['job_type_id']?>')">Add Time Record</button>
+														        					<button class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:registerTime('<?php echo $token['1'] ?>',<?php echo $value['taskid'] ?>,document.getElementById('text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>',).value,<?php echo $value['job_type_id']?>,<?php echo $token_Id['0']?>)">Add Time Record</button>
 															        			</div>
 															        		<?php
 
@@ -340,6 +340,36 @@ class ActiveCollabAPI{
 		$token = $authenticator->issueToken((int) $active_Unserilizedarry['1']);
 		$user = $authenticator->getUser();
 		return array($token,$active_Unserilizedarry['5'],$user);
+	}
+
+	function a_registerTime(){
+	  $projectId = $_POST['projectId'];
+	  $task_id = $_POST['task_id'];
+	  $value = $_POST['value'];
+	  $job_id = $_POST['job_id'];
+	  $userId = $_POST['userId'];
+	  $token = self::a_configuration_settings();
+	  $date  = date("Y-m-d");
+	  $params = array(
+	  	  "task_id" => $task_id,
+	      "value" => $value,
+	      "user_id" => $userId,
+	      "job_type_id" => $job_id,
+	      "record_date" => $date
+	  );
+	  print_r($params);
+	  //exit;
+	  $client;
+	  if($token){
+	   $client = new \ActiveCollab\SDK\Client($token['0']);
+	   $logTime = $client->post('/projects/'.$projectId.'/time-records',$params);
+	   //$logTime = $client->post($projectId.'/timerecords',$params);
+	   if($logTime){
+	   	print_r($logTime);
+	   }
+	  }
+	  
+	  die();
 	}
 
 	

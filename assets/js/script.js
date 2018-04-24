@@ -32,21 +32,26 @@ $(document).on("click", "#signin", function () {
     return false;
 });
 
- /* $( function() {
-    $( "#dialog" ).dialog({
-      autoOpen: false,
-      show: {
-        effect: "blind",
-        duration: 1000
-      },
-      hide: {
-        effect: "explode",
-        duration: 1000
-      }
-    });
- 
-    $( "#opener" ).on( "click", function() {
-      $( "#dialog" ).dialog( "open" );
-    });
-  } );*/
 
+function registerTime(projectId,id,textbox,job_id,userId){
+  //alert(projectId+id+textbox+job_id+userId);
+  
+  $.ajax({
+        method:'POST',
+        url:ajax_object.ajax_url,
+        data:{
+            'action' :'a_registerTime',
+            'projectId' : projectId,
+            'task_id' : id,
+            'value' : textbox,
+            'job_id' : job_id,
+            'userId' : userId,
+        },
+        success:function(data){
+            console.log(data)     
+        },
+        error:function (errorThrown) {
+            console.log(errorThrown)
+        }
+  });
+}

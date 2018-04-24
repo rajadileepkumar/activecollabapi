@@ -49,6 +49,31 @@ h2.hndle.ui-sortable-handle {
 	padding-left: 5px;
 }
 
+.subtasks,.discussion{
+	padding: 10px 0;
+	margin: 0 0 30px 0;
+}
+.subtasks h4,.discussion h4{
+	margin: 0 0 16px 0;
+}
+
+.subtasks p{
+	line-height: 23px;
+}
+
+.discussion ul{
+	padding: 0 40px;
+}
+
+.discussion ul li{
+	line-height: 23px;
+	padding: 0 0 0 10px;
+}
+
+.time-control{
+	margin: 20px 0;
+}
+
 @media (max-width: 760px){
 	.postbox{
 		width: 100%;
