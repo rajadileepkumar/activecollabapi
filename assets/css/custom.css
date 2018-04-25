@@ -70,10 +70,30 @@ h2.hndle.ui-sortable-handle {
 	padding: 0 0 0 10px;
 }
 
-.time-control{
+.control{
 	margin: 20px 0;
 }
 
+.modal-body{
+	padding: 30px;
+	overflow-y: auto;
+}
+
+.addTimeRecord{
+	margin: 0 0 10px;
+}
+.time-records{
+	background: #f7f7f7;
+	padding: 15px 0;
+	margin: 5px 0;
+	border-top: 0.5px solid #e1e1e1;
+	border-bottom: 0.5px solid #e1e1e1;
+}
+
+.count-task{
+	font-size: 16px;
+	padding-left: 5px;
+}
 @media (max-width: 760px){
 	.postbox{
 		width: 100%;

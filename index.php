@@ -9,6 +9,7 @@
  * 
  * 
  * 
+ * 
  */
 //define('WP_DEBUG', true);
 //ini_set('MAX_EXECUTION_TIME', 800000);
@@ -182,6 +183,7 @@ class ActiveCollabAPI{
 							$taskarray[$tsklist['name']]['task_url_path'] = $tsklist['url_path'];
 							$taskarray[$tsklist['name']]['close_sub_task'] = $tsklist['completed_subtasks'];
 							$taskarray[$tsklist['name']]['job_type_id'] = $tsklist['job_type_id'];
+							$taskarray[$tsklist['name']]['id'] = $tsklist['id'];
 						}
 						//var_dump($taskarray);
 						foreach ($taskList['task_lists'] as $list) {
@@ -199,11 +201,12 @@ class ActiveCollabAPI{
 											<?php  
 												foreach ($taskarray as $key => $value) {
 													if($value['taskid'] == $task_list_id){
+														//echo $value['id'] taskid;
 														$taskclass = str_replace(' ', '-', strtolower($key));
 														if(!empty($value['assignee_name'])){
 															$assignee = $value['assignee_name'];	
 														}
-														echo '<div data-toggle="modal" class="task" data-target="#tasklist-'.$value['taskid'].'-'.$taskclass.'">';
+														echo '<div data-toggle="modal" class="task" data-target="#tasklist-'.$value['id'].'-'.$taskclass.'">';
 															
 															echo '<span class="task-name">'.$key.'<sub>-'.$assignee.'</span>';
 															
@@ -212,7 +215,8 @@ class ActiveCollabAPI{
 															}
 
 															if(!empty($value['open_sub_task'])){
-																echo '<span class="task-icons dashicons dashicons-editor-ul">'.$value['open_sub_task'].'</span>';
+																echo '<span class="task-icons glyphicon glyphicon-tasks"></span>';
+																echo '<span class="count-task">'.$value['open_sub_task'].'</span>';
 															}
 
 															/*if(!empty($value['close_sub_task'])){
@@ -225,23 +229,24 @@ class ActiveCollabAPI{
 														<?php			
 													}
 													?>
-														<div id="tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" class="modal fade" role="dialog">
+														<div id="tasklist-<?php echo $value['id'].'-'.$taskclass ?>" class="modal fade" role="dialog">
 															<div class="modal-dialog">
 														    	<div class="modal-content">
 															    	<div class="modal-header">
 															        	<button type="button" class="close" data-dismiss="modal">&times;</button>
-															        	<h4 class="modal-title">Modal Header</h4>
+															        	<h4 class="modal-title"><?php echo $key ?></h4>
 															      	</div>
 															    	<div class="modal-body">
-															        	<h2><?php echo $key; ?></h2>
 															        	<?php
-															        		echo "Job Type Id" .$value['job_type_id'];
+															        		//echo "Job Type Id" .$value['job_type_id'];
 															        		$subtask_List = $client->get($value['task_url_path'])->getJson();//subtasklist
 
 															        		$subtaskArray = array();
 															        		$commentsArray = array();
 															        		if(!empty($subtask_List['subtasks'])){
-															        			self::subtasks_tasks($subtask_List['subtasks']); //opentask	
+															        			//self::subtasks_tasks($subtask_List['subtasks']); //opentask	
+															        			self::subtask_open($subtask_List['subtasks']);//opensubtask
+															        			self::subtask_close($subtask_List['subtasks']);//closedsubtask
 															        		}
 															        		if(!empty($subtask_List['comments'])){
 															        			self::subtasks_comments($subtask_List['comments']);//discussion	
@@ -252,12 +257,29 @@ class ActiveCollabAPI{
 															        			<div id="time-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" class="collapse">
 															        				
 														        					<form>
-														        						<textarea rows="4" cols="50" class="form-control time-control recordingTime"  id = "text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Enter Time 1.30 or 1.5" required></textarea>
+														        						<input type="text" class="form-control control" name="text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" id="text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Enter Time 1.30 or 1.5" required>
+														        						
+														        						<textarea rows="4" cols="50" class="form-control control"  id = "description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name =  "description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Description"></textarea>
+														        						<select class="form-control control" id="job_type_id-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">
+														        							<?php  
+															        							$job_types = $client->get('job-types')->getJson(); 
+															        							$jobtypes = self::jobtypes($job_types);
+															        						?>
+														        						</select>
 														        					</form>
-														        					<button class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:registerTime('<?php echo $token['1'] ?>',<?php echo $value['taskid'] ?>,document.getElementById('text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>',).value,<?php echo $value['job_type_id']?>,<?php echo $token_Id['0']?>)">Add Time Record</button>
+														        					<?php //registerTime(projectid,userid,taskid,time,description,jobid);?>
+														        					<button type="submit" class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:registerTime(<?php echo $token['1'] ?>,<?php echo $token_Id['0']?>,<?php echo $value['id'] ?>,document.getElementById('text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>').value,document.getElementById('description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>').value,document.getElementById('job_type_id-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>').value)">Add Time Record</button>
+														        					<div id="time-records">
+														        						<?php 
+															        						$time_records = $client->get('/projects/'.$token['1'].'/tasks/'.$value['id'].'/time-records')->getJson();
+															        						//print_r($time_records);
+																							if(!empty($time_records)){
+																								self::getTimeRecordsByTask($time_records['time_records']);
+																							}
+																						?>
+														        					</div>
 															        			</div>
 															        		<?php
-
 															        	?>
 															      	</div>
 															    	<div class="modal-footer">
@@ -280,7 +302,7 @@ class ActiveCollabAPI{
 		<?php
 	}
 
-	private function subtasks_tasks($subtask_List){
+	private function subtask_open($subtask_List){
 		//print_r($subtask_List);
 		echo '<div class="subtasks">';
 			echo '<h4>Sub Tasks</h4>';
@@ -288,16 +310,24 @@ class ActiveCollabAPI{
     			if($slist['is_completed'] == ''){
     				echo '<p>'.$slist['name'].'</p>';	
     			}
-
-    			if($slist['is_completed'] != ''){
-    				echo '<div class="c-sub">';
-    					echo '<p>'.$slist['name'].'</p>';		
-    				echo '</div>';
-    			}
-
     		}
 		echo '</div>';
 	}
+
+	private function subtask_close($subtask_List){
+		?>
+			<p data-toggle="collapse" data-target="#demo">completed subtask</p>
+		<?php
+		foreach ($subtask_List as $slist) {
+			if($slist['is_completed'] != ''){
+				echo '<div class="c-sub collapse" id="demo">';
+					echo '<p>'.$slist['name'].'</p>';		
+				echo '</div>';
+			}	
+		}
+	}
+	
+
 
 	private function subtasks_comments($comments){
 		//print_r($comments);
@@ -343,34 +373,73 @@ class ActiveCollabAPI{
 
 	function a_registerTime(){
 	  $projectId = $_POST['projectId'];
-	  $task_id = $_POST['task_id'];
-	  $value = $_POST['value'];
-	  $job_id = $_POST['job_id'];
 	  $userId = $_POST['userId'];
+	  $taskId = $_POST['taskId'];
+	  $time = $_POST['time'];
+	  $description = $_POST['description'];
+	  $jobId = $_POST['jobId'];
+	  
 	  $token = self::a_configuration_settings();
 	  $date  = date("Y-m-d");
+	  
 	  $params = array(
-	  	  "task_id" => $task_id,
-	      "value" => $value,
+	  	  "task_id" => $taskId,
+	      "value" => $time,
 	      "user_id" => $userId,
-	      "job_type_id" => $job_id,
-	      "record_date" => $date
+	      "job_type_id" => $jobId,
+	      "record_date" => $date,
+	      "summary" => $description
 	  );
-	  print_r($params);
-	  //exit;
+	  /*print_r($params);
+	  exit;*/
 	  $client;
 	  if($token){
 	   $client = new \ActiveCollab\SDK\Client($token['0']);
 	   $logTime = $client->post('/projects/'.$projectId.'/time-records',$params);
-	   //$logTime = $client->post($projectId.'/timerecords',$params);
 	   if($logTime){
-	   	print_r($logTime);
+
+																        			
 	   }
 	  }
 	  
 	  die();
 	}
 
+	private function jobtypes($job_types){
+		
+		echo '<option id="">Choose Job Type</option>';
+		foreach ($job_types as $jobs) {
+			?>
+				<option id="job_type_id" value="<?php echo $jobs['id']?>"><?php echo $jobs['name']?></option>
+			<?php
+		}
+	}
+
+	private function getTimeRecordsByTask($time_records){
+		echo '<div>';
+			foreach ($time_records as $time) {
+				//$token = self::getUserAvatar($time['user_id']);
+				echo '<div class="col-md-12 time-records">';
+					echo '<p class="col-md-3">'.gmdate('M-d.Y', $time['record_date']).'</p>';
+					echo '<p class="col-md-3">'.$time['value'].'</p>';
+					echo '<p class="col-md-3">'.$time['created_by_name'].'</p>';
+					echo '<p class="col-md-3">'.$time['summary'].'</p>';
+				echo '</div>';
+			}
+		echo '</div>';
+	}
+
+	private function getUserAvatar($userid){
+		$token = self::a_configuration_settings();
+		if($token){
+	   		$client = new \ActiveCollab\SDK\Client($token['0']);
+	   		$avatar_url = $client->get('users/'.$user_id)->getJson();
+	   		foreach ($avatar_url as $avatar) {
+	   			return $avatar['avatar_url'];
+	   		}
+	   	}
+
+	}
 	
 }
 

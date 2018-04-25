@@ -32,9 +32,12 @@ $(document).on("click", "#signin", function () {
     return false;
 });
 
+//registerTime(projectid,userid,taskid,time,description,jobid);
+//,description,jobId+"description"+description,"Job Id"+jobId
 
-function registerTime(projectId,id,textbox,job_id,userId){
-  //alert(projectId+id+textbox+job_id+userId);
+function registerTime(projectId,userId,taskId,time,description,jobId){
+  
+  //alert("Project Id"+projectId+"userId"+userId+"taskId"+taskId+"Time"+time+"description"+description+"Job Id"+jobId);
   
   $.ajax({
         method:'POST',
@@ -42,10 +45,11 @@ function registerTime(projectId,id,textbox,job_id,userId){
         data:{
             'action' :'a_registerTime',
             'projectId' : projectId,
-            'task_id' : id,
-            'value' : textbox,
-            'job_id' : job_id,
             'userId' : userId,
+            'taskId' : taskId,
+            'time' : time,
+            'description' : description,
+            'jobId' : jobId,
         },
         success:function(data){
             console.log(data)     
