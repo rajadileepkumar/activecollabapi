@@ -23,6 +23,9 @@ class ActiveCollabAPI{
 		add_action( 'wp_ajax_nopriv_a_activecollab_settings_saved', array($this,'a_activecollab_settings_saved')); //insert and validate
 		add_action( 'wp_ajax_a_activecollab_settings_saved', array($this,'a_activecollab_settings_saved'));//insert and validate
 
+		add_action( 'wp_ajax_nopriv_a_TaskListByDetailsId', array($this,'a_TaskListByDetailsId')); //insert and validate
+		add_action( 'wp_ajax_a_TaskListByDetailsId', array($this,'a_TaskListByDetailsId'));//insert and validate
+		
 		add_action( 'admin_bar_menu', array($this,'a_toolbar_link_page'),999);//add admin node
 
 	}
@@ -110,6 +113,43 @@ class ActiveCollabAPI{
 			add_option($optionName, $active_Serilizedarray, '', 'yes'); //insert settings
 			echo "Settings Inserted";
 		}
+		die();
+	}
+
+	function a_TaskListByDetailsId(){
+		$id = $_POST['id'];
+		$urlPath = sanitize_text_field($_POST['urlPath']);
+		$token = self::a_configuration_settings();
+		$client;
+		if($token){
+			$client = new \ActiveCollab\SDK\Client($token['0']); 
+			$subtask_List = $client->get($urlPath)->getJson();
+		}
+
+		$subtaskArray = array();
+		$commentsArray = array();
+		if(!empty($subtask_List['subtasks'])){
+			?>
+				<h4>Sub Tasks</h4>
+				<ul>
+					<?php self::subtask_open($subtask_List['subtasks']);//opensubtask ?>
+				</ul>
+			<?php
+			?>
+				<div id="completed-tasklist<?php echo $value['taskid'].'-'.$taskclass ?>" class="collapse">
+					<ul>
+						<?php
+							self::subtask_close($subtask_List['subtasks']);//closedsubtask
+						?>	
+					</ul>
+				</div>
+			<?php
+		}
+
+		if(!empty($subtask_List['comments'])){
+			self::subtasks_comments($subtask_List['comments']);//discussion	
+		}
+		
 		die();
 	}
 	
@@ -224,12 +264,12 @@ class ActiveCollabAPI{
 														//echo $value['id'] taskid;
 														$taskclass = str_replace(' ', '-', strtolower($key));
 														if(!empty($value['assignee_name'])){
-															$assignee = $value['assignee_name'];	
+															$assignee = $value['assignee_name'];
+															$url_path = "'".$value['task_url_path']."'";	
 														}
-														echo '<div data-toggle="modal" class="task" data-target="#tasklist-'.$value['id'].'-'.$taskclass.'">';
+														echo '<div data-toggle="modal" class="task" id="tasklist-'.$value['id'].'-'.$taskclass.'" onclick="javascript:getTasksListById(this.id,'.$url_path.')" data-target="#tasklist-'.$value['id'].'-'.$taskclass.'">';
 															
 															echo '<span class="task-name">'.$key.'<sub>-'.$assignee.'</span>';
-															
 															if(!empty($value['label'])){
 																echo '<span class="task-label" style="color:'.$value['color'].'">'.$value['label'].'</span>';
 															}
@@ -251,87 +291,24 @@ class ActiveCollabAPI{
 															
 														echo '</div>';
 
-														?>	
+														?>
 														<?php			
 													}
 													?>
 														<div id="tasklist-<?php echo $value['id'].'-'.$taskclass ?>" class="modal fade" role="dialog">
 															<div class="modal-dialog">
-														    	<div class="modal-content">
-															    	<div class="modal-header">
+																<div class="modal-content">
+																	<div class="modal-header">
 															        	<button type="button" class="close" data-dismiss="modal">&times;</button>
 															        	<h4 class="modal-title"><?php echo $key ?></h4>
 															      	</div>
-															    	<div class="modal-body">
-															        	<?php
-															        		//echo "Job Type Id" .$value['job_type_id'];
-															        		$subtask_List = $client->get($value['task_url_path'])->getJson();//subtasklist
-
-															        		$subtaskArray = array();
-															        		$commentsArray = array();
-															        		if(!empty($value['open_sub_task'])){
-																				if(!empty($subtask_List['subtasks'])){
-																        			//self::subtasks_tasks($subtask_List['subtasks']); //opentask	
-																        			self::subtask_open($subtask_List['subtasks']);//opensubtask
-																        		}	
-																			}
-															        		
-															        		if(!empty($value['close_sub_task'])){
-																				echo '<p class="closed_tasks">Completed Tasks('.$value['close_sub_task'].')</p>';
-																				if(!empty($subtask_List['subtasks'])){
-																					self::subtask_close($subtask_List['subtasks']);//closedsubtask
-																				}
-																			}
-
-															        		if(!empty($subtask_List['comments'])){
-															        			self::subtasks_comments($subtask_List['comments']);//discussion	
-															        		}
-															        		?>
-															        			<button class="button button-primary" data-toggle="collapse" data-target="#time-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">+Add Time</button>
-
-															        			<div id="time-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" class="collapse">
-															        				
-														        					<form id="<?php echo 'form_'.$value['taskid'].'_'.$taskclass ?>">
-														        						<div class="form-group">
-														        							<label for="text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">Time Log (<span class="required-field">*</span>)</label>
-														        							<input type="text" class="form-control control" name="text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" id="text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Enter Time 1.30 or 1.5" required>
-														        						</div>
-														        						<div class="form-group">
-														        							<label for="description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">Description (<span class="required-field">*</span>)</label>
-														        							<textarea rows="4" cols="50" class="form-control control"  id = "description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name =  "description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" placeholder="Description"></textarea>
-														        						</div>
-														        						<div class="form-group">
-														        							<label for="job_type_id-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">Select Job Type (<span class="required-field">*</span>)</label>
-														        							<select class="form-control control" id="job_type_id-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>">
-															        							<?php  
-																        							$job_types = $client->get('job-types')->getJson(); 
-																        							$jobtypes = self::jobtypes($job_types);
-																        						?>
-														        							</select>
-														        						</div>
-														        						<input type="button" class="btn btn-primary addTimeRecord" id="button-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>" name="addTimeRecord" onclick="javascript:registerTime(<?php echo $token['1'] ?>,<?php echo $token_Id['0']?>,<?php echo $value['id'] ?>,document.getElementById('text-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>').value,document.getElementById('description-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>').value,document.getElementById('job_type_id-tasklist-<?php echo $value['taskid'].'-'.$taskclass ?>').value)" value="Add Time Record">
-														        						<p class="errormsg" id="errormsg_<?php echo $value['id'] ?>"></p>
-														        					</form>
-														        					<?php //registerTime(projectid,userid,taskid,time,description,jobid);?>
-														        					
-														        					<div id="time-records">
-														        						<?php 
-															        						$time_records = $client->get('/projects/'.$token['1'].'/tasks/'.$value['id'].'/time-records')->getJson();
-															        						//print_r($time_records);
-																							if(!empty($time_records)){
-																								self::getTimeRecordsByTask($time_records['time_records']);
-																							}
-																						?>
-														        					</div>
-															        			</div>
-															        		<?php
-															        	?>
+															      	<div class="modal-body">
 															      	</div>
-															    	<div class="modal-footer">
+																	<div class="modal-footer">
 															        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
 															      	</div>
-														   		 </div><!--modal-content-->
-														  	</div><!--modal-dialog-->
+																</div><!--modal-content-->
+															</div><!--modal-dialog-->
 														</div><!--modal-->
 													<?php
 												}
@@ -349,11 +326,10 @@ class ActiveCollabAPI{
 
 	private function subtask_open($subtask_List){
 		//print_r($subtask_List);
-		echo '<div class="subtasks">';
-			echo '<h4>Sub Tasks</h4>';
+		
     		foreach ($subtask_List as $slist) {
     			if($slist['is_completed'] == ''){
-    				echo '<p>'.$slist['name'].'</p>';	
+    				echo '<li>'.$slist['name'].'</li>';	
     			}
     		}
 		echo '</div>';
@@ -363,7 +339,7 @@ class ActiveCollabAPI{
 		//echo '<pre>' . print_r($subtask_List, true) . '</pre>';
 		foreach ($subtask_List as $slist) {
 			if($slist['is_completed'] != ''){
-				echo '<p>'.$slist['name'].'</p>';	
+				echo '<li>'.$slist['name'].'</li>';	
 			}
 		}
 	}
