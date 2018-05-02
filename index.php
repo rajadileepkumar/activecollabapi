@@ -119,6 +119,10 @@ class ActiveCollabAPI{
 	function a_TaskListByDetailsId(){
 		$id = $_POST['id'];
 		$urlPath = sanitize_text_field($_POST['urlPath']);
+		$projectId = sanitize_text_field($_POST['projectId']);
+		$userId = sanitize_text_field($_POST['userId']);
+		$taskId = sanitize_text_field($_POST['taskId']);
+		
 		$token = self::a_configuration_settings();
 		$client;
 		if($token){
@@ -126,6 +130,7 @@ class ActiveCollabAPI{
 			$subtask_List = $client->get($urlPath)->getJson();
 		}
 
+		//print_r($subtask_List['single']['name']);
 		$subtaskArray = array();
 		$commentsArray = array();
 		if(!empty($subtask_List['subtasks'])){
@@ -136,19 +141,56 @@ class ActiveCollabAPI{
 				</ul>
 			<?php
 			?>
-				<div id="completed-tasklist<?php echo $value['taskid'].'-'.$taskclass ?>" class="collapse">
-					<ul>
-						<?php
-							self::subtask_close($subtask_List['subtasks']);//closedsubtask
-						?>	
-					</ul>
-				</div>
+			<p>closed Subtask</p>
+			<ul>
+				<?php
+					self::subtask_close($subtask_List['subtasks']);//closedsubtask
+				?>	
+			</ul>	
+				
+				
 			<?php
 		}
 
 		if(!empty($subtask_List['comments'])){
 			self::subtasks_comments($subtask_List['comments']);//discussion	
 		}
+
+		?>
+			<div class="time-task">
+    			<button class="button button-primary" data-toggle="collapse" data-target="#time-tasklist">+Add Time</button>
+    			<div id="time-tasklist" class="collapse">
+    				<form id="timeLogTaskById" method="post">
+    					<div class="form-group">
+    						<label for="timeLogRecord">Time Log (<span class="required-field">*</span>)</label>
+							<input type="text" class="keycontrol form-control control" name="timeLogRecord" id="timeLogRecord" placeholder="Enter Time 1.30 or 1.5" required maxlength="5" minlength="1">
+    					</div>
+    					<div class="form-group">
+    						<label for="timeLogDescription">Description (<span class="required-field">*</span>)</label>
+							<textarea rows="4" cols="50" class="form-control control"  id = "timeLogDescription" name = "timeLogDescription" placeholder="Description"></textarea>
+    					</div>
+    					<div class="form-group">
+    						<label for="job_type_id">Select Job Type (<span class="required-field">*</span>)</label>
+							<select class="form-control control" id="job_type_id" name="job_type_id">
+    							<?php  
+        							$job_types = $client->get('job-types')->getJson(); 
+        							$jobtypes = self::jobtypes($job_types);
+        						?>
+							</select>
+    					</div>
+    					<input type="button" class="btn btn-primary addTimeRecord" id="addTimeTaskById" name="addTimeTaskById" value="Add Time Record" onclick="javascript:registerTime(<?php echo $projectId?>,<?php echo $userId;?>,<?php echo $taskId?>, document.getElementById('timeLogRecord').value,document.getElementById('timeLogDescription').value,document.getElementById('job_type_id').value)">
+    				</form>
+    				<div class="time_records" id="time-records">
+	    				<?php 
+							$time_records = $client->get('/projects/'.$projectId.'/tasks/'.$taskId.'/time-records')->getJson();
+							if(!empty($time_records)){
+								self::getTimeRecordsByTask($time_records['time_records']);
+							}
+						?>
+	    			</div>	
+				</div>
+    		</div>
+		<?php
 		
 		die();
 	}
@@ -239,13 +281,15 @@ class ActiveCollabAPI{
 							$taskarray[$tsklist['name']]['color'] = $tsklist['labels'][0]['color'];
 							$taskarray[$tsklist['name']]['assignee_name'] = $tsklist['fake_assignee_name'];
 							$taskarray[$tsklist['name']]['open_sub_task'] = $tsklist['open_subtasks'];
-							$taskarray[$tsklist['name']]['task_url_path'] = $tsklist['url_path'];
+							$taskarray[$tsklist['name']]['url_path'] = $tsklist['url_path'];
 							$taskarray[$tsklist['name']]['close_sub_task'] = $tsklist['completed_subtasks'];
 							$taskarray[$tsklist['name']]['job_type_id'] = $tsklist['job_type_id'];
 							$taskarray[$tsklist['name']]['id'] = $tsklist['id'];
 							$taskarray[$tsklist['name']]['comments_count'] = $tsklist['comments_count'];
+							$taskarray[$tsklist['name']]['created_by_name'] = $tsklist['created_by_name'];
+							$taskarray[$tsklist['name']]['created_by_email'] = $tsklist['created_by_email'];
+							
 						}
-						//var_dump($taskarray);
 						foreach ($taskList['task_lists'] as $list) {
 							?>
 								<div class="postbox">
@@ -261,15 +305,21 @@ class ActiveCollabAPI{
 											<?php  
 												foreach ($taskarray as $key => $value) {
 													if($value['taskid'] == $task_list_id){
-														//echo $value['id'] taskid;
+														$value['id']."taskid";
+														$url_path = "'".$value['url_path']."'";	
 														$taskclass = str_replace(' ', '-', strtolower($key));
 														if(!empty($value['assignee_name'])){
 															$assignee = $value['assignee_name'];
-															$url_path = "'".$value['task_url_path']."'";	
 														}
-														echo '<div data-toggle="modal" class="task" id="tasklist-'.$value['id'].'-'.$taskclass.'" onclick="javascript:getTasksListById(this.id,'.$url_path.')" data-target="#tasklist-'.$value['id'].'-'.$taskclass.'">';
+
+														if(!empty($value['created_by_name'])){
+															$created_by_name = $value['created_by_name'];
+														}
+
+														echo '<div class="task" id="list-'.$value['id'].'-'.$taskclass.'" onclick="javascript:getTasksListById(this.id,'.$url_path.','.$token['1'].','.$token_Id['0'].','.$value['id'].')" data-id="'.$key.'">';
 															
-															echo '<span class="task-name">'.$key.'<sub>-'.$assignee.'</span>';
+															echo '<span class="task-name">'.$key.'<sub>-'.$created_by_name.'</span>';
+															echo '<span class="glyphicon glyphicon-triangle-top pull-right"></span>';
 															if(!empty($value['label'])){
 																echo '<span class="task-label" style="color:'.$value['color'].'">'.$value['label'].'</span>';
 															}
@@ -290,27 +340,7 @@ class ActiveCollabAPI{
 															}
 															
 														echo '</div>';
-
-														?>
-														<?php			
 													}
-													?>
-														<div id="tasklist-<?php echo $value['id'].'-'.$taskclass ?>" class="modal fade" role="dialog">
-															<div class="modal-dialog">
-																<div class="modal-content">
-																	<div class="modal-header">
-															        	<button type="button" class="close" data-dismiss="modal">&times;</button>
-															        	<h4 class="modal-title"><?php echo $key ?></h4>
-															      	</div>
-															      	<div class="modal-body">
-															      	</div>
-																	<div class="modal-footer">
-															        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-															      	</div>
-																</div><!--modal-content-->
-															</div><!--modal-dialog-->
-														</div><!--modal-->
-													<?php
 												}
 											?>
 										</div><!--main-->	
@@ -319,6 +349,25 @@ class ActiveCollabAPI{
 							<?php
 						}
 					?>
+					<div class="" id="loadingDiv">
+						<img src="<?php echo plugin_dir_url( __FILE__ ) . 'assets/images/loading.jpg'; ?>">
+					</div>
+					<div id="myModal" class="modal fade" role="dialog">
+						<div class="modal-dialog">
+					    	<div class="modal-content">
+						    	<div class="modal-header">
+						        	<button type="button" class="close" data-dismiss="modal">&times;</button>
+						        	<h4 class="modal-title">List Of Task Details</h4>
+						      	</div>
+						    	<div class="modal-body">
+						    		<div class="subTasks"></div>
+						    	</div>
+						    	<div class="modal-footer">
+						        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						      	</div>
+						    </div>
+						</div>
+					</div>  
 				</div><!--postbox-container-->
 			</div><!--wrap-->
 		<?php

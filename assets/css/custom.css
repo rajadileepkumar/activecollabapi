@@ -1,9 +1,12 @@
+body{
+	background-color: #f1f1f1;
+}
 .postbox-container{
 	margin: 20px 0;
 }
 .postbox{
-	margin: 0 5px;
-	width: 330px;
+	margin: 10px 5px;
+	width: 100%;
 	float: left;
 }
 h2.hndle.ui-sortable-handle {
@@ -36,7 +39,7 @@ h2.hndle.ui-sortable-handle {
 	padding: 0;
 } */
 .task-name,.task-assign{
-	display: block;
+	display: inline-block;
 	padding: 5px 0;
 }
 
@@ -51,7 +54,7 @@ h2.hndle.ui-sortable-handle {
 
 .subtasks,.discussion{
 	padding: 10px 0;
-	margin: 0 0 30px 0;
+	margin: 0 0 20px 0;
 }
 .subtasks h4,.discussion h4{
 	margin: 0 0 16px 0;
@@ -70,10 +73,12 @@ h2.hndle.ui-sortable-handle {
 	padding: 0 0 0 10px;
 }
 
-.control{
+.form-group{
 	margin: 20px 0;
 }
-
+.modal{
+	display: none;
+}
 .modal-body{
 	padding: 30px;
 	overflow-y: auto;
@@ -92,7 +97,35 @@ h2.hndle.ui-sortable-handle {
 
 .count-task{
 	font-size: 16px;
-	padding-left: 5px;
+	padding:0 5px;
+}
+
+#submitErrorMsg{
+	color: #ff0000;
+}
+
+.closed_tasks{
+	font-size: 16px;
+	font-weight: 600;
+}
+
+#loadingDiv{
+	display: none;
+}
+
+.modal-footer{
+	margin-top: 20px;
+}
+
+.main .task span.task-name {
+    padding-left: 12px;
+}
+
+span.task-icons {
+    padding-left: 12px;
+}
+span.task-label {
+    padding-left: 12px;
 }
 @media (max-width: 760px){
 	.postbox{

@@ -14,7 +14,8 @@ function registerTime(projectId,userId,taskId,time,description,jobId){
                 'jobId' : jobId,
             },
             success:function(data){
-                console.log(data)     
+                //console.log(data)     
+                window.location.reload(true);
             },
             error:function (errorThrown) {
                 console.log(errorThrown)
@@ -25,19 +26,6 @@ function registerTime(projectId,userId,taskId,time,description,jobId){
         alert('All Mandatory Fields required');
     }
 }
-
-/*$(function () {
-    $('.keycontrol').keydown(function (e) {
-        if (e.shiftKey || e.ctrlKey || e.altKey) {
-            e.preventDefault();
-        } else {
-        var key = e.keyCode;
-            if (!((key == 8) || (key == 46) || (key >= 35 && key <= 40) || (key >= 48 && key <= 57) || (key >= 96 && key <= 105))) {
-                e.preventDefault();
-            }
-        }
-    });
-});*/
 
 $(document).ready(function() {
     $(".keycontrol").keydown(function (e) {
@@ -57,48 +45,33 @@ $(document).ready(function() {
     });
 });
 
-/*$('.validForm').submit(function(event){
-    var allInputsAreValid = true;
-    var form = null;
-    $('.validForm input').each(function(){
-        switch($(this).attr('class')){
-            case 'keycontrol':
-                if($(this).val() == "") {
-                    allInputsAreValid = false;
-                }
-            break;
-            case 'newsletter':
-                 allInputsAreValid = false;
-            break;
-        }
-        if(!allInputsAreValid) {
-            form = $(this).parent();
-            break;
-        }
-    });
-    if(allInputsAreValid){
-      // everything is valid, transfer data
-    } else {
-        event.preventDefault();
-        $(form).children('.error').text(errorMessage);
-    }
-});*/
-
-function getTasksListById(id,urlPath){
+function getTasksListById(id,urlPath,projectId,userId,taskId){
     $.ajax({
         method:'POST',
         url:ajax_object.ajax_url,
         data:{
             'action' :'a_TaskListByDetailsId',
              'id':id,
-             'urlPath':urlPath
+             'urlPath':urlPath,
+             'projectId':projectId,
+             'userId':userId,
+             'taskId':taskId,
         },
         success:function(data){
-             $('.modal-body').html(data);
-             $('#'+id).modal('show');    
+            $('.modal-body > .subTasks').html(data);
+            $('#myModal').modal('show');    
         },
         error:function (errorThrown) {
             console.log(errorThrown)
         }
   });  
 }
+
+$(document).ajaxStart(function(){
+    $("#loadingDiv").css("display", "block");
+});
+$(document).ajaxComplete(function(){
+    $("#loadingDiv").css("display", "none");
+});
+
+
