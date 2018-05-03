@@ -68,6 +68,8 @@ class ActiveCollabAPI{
 		wp_enqueue_script('script-js');
 		wp_localize_script( 'script-js', 'ajax_object',
 		                array( 'ajax_url' => admin_url( 'admin-ajax.php' )) );
+		wp_enqueue_script( 'thickbox' );
+		wp_enqueue_style( 'thickbox' );
         
 	}
 
@@ -128,28 +130,34 @@ class ActiveCollabAPI{
 		if($token){
 			$client = new \ActiveCollab\SDK\Client($token['0']); 
 			$subtask_List = $client->get($urlPath)->getJson();
+			$time_records = $client->get('/projects/'.$projectId.'/tasks/'.$taskId.'/time-records')->getJson();
 		}
 
-		//print_r($subtask_List['single']['name']);
+		$totalTimeSpend = self::getTotalTimeRecordsByTask($time_records['time_records']);
+
 		$subtaskArray = array();
 		$commentsArray = array();
+		echo '<h4 class="modal-title task_main_heading">';
+			echo $subtask_List['single']['name'];
+			if(!empty($totalTimeSpend)){
+				echo '('.$totalTimeSpend.'Hours)';
+			}
+		echo '</h4>';
+
 		if(!empty($subtask_List['subtasks'])){
-			?>
-				<h4>Sub Tasks</h4>
-				<ul>
-					<?php self::subtask_open($subtask_List['subtasks']);//opensubtask ?>
-				</ul>
-			<?php
-			?>
-			<p>closed Subtask</p>
-			<ul>
-				<?php
-					self::subtask_close($subtask_List['subtasks']);//closedsubtask
-				?>	
-			</ul>	
-				
-				
-			<?php
+			if(!empty($subtask_List['single']['open_subtasks'])){
+				echo '<p class="task_heading">Sub Tasks</p>';
+				echo '<ul>';
+					self::subtask_open($subtask_List['subtasks']);//opensubtask 
+				echo '</ul>'; 
+			}
+
+			if(!empty($subtask_List['single']['completed_subtasks'])){
+				echo '<a data-toggle="collapse" data-target="#closed-tasklist">Closed Tasks ('.$subtask_List['single']['completed_subtasks'].')</a>';
+				echo '<ul id="closed-tasklist" class="collapse">';
+					self::subtask_close($subtask_List['subtasks']);//closedsubtask	
+				echo '</ul>';
+			}
 		}
 
 		if(!empty($subtask_List['comments'])){
@@ -182,7 +190,7 @@ class ActiveCollabAPI{
     				</form>
     				<div class="time_records" id="time-records">
 	    				<?php 
-							$time_records = $client->get('/projects/'.$projectId.'/tasks/'.$taskId.'/time-records')->getJson();
+							
 							if(!empty($time_records)){
 								self::getTimeRecordsByTask($time_records['time_records']);
 							}
@@ -267,9 +275,9 @@ class ActiveCollabAPI{
 						$token_Id =  explode("-",$token['0']->getToken());//userid
 					}
 				?>
-				<h2>Active Collab<sub>/<?php echo $user['first_name']." ".$user['last_name'];?><sub>/ <?php echo $projectName['single']['name']; ?></sub>
+				<h2>Active Collab<span> --<?php echo $user['first_name']." ".$user['last_name'];?></span><span> --<?php echo $projectName['single']['name']; ?></span>
 				</h2>
-				<div class="postbox-container">
+				<div class="panel-group" id="accordion">
 					<?php
 						$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
 						//echo '<pre>' . print_r($taskList, true) . '</pre>';
@@ -292,16 +300,21 @@ class ActiveCollabAPI{
 						}
 						foreach ($taskList['task_lists'] as $list) {
 							?>
-								<div class="postbox">
-									<h2 class="hndle ui-sortable-handle	">
-										<?php
-											$task_list_id = $list['id'];
-											$task_list_total = $list['open_tasks']; //count of tasks
-										?>
-										<span><?php echo $list['name'];?> (<?php echo $task_list_total;?>)</span>
-									</h2>
-									<div class="inside">
-										<div class="main">
+								<div class="panel panel-default">
+									<div class="panel-heading">
+										<h4 class="panel-title">
+											<?php
+												$task_list_id = $list['id'];
+												$task_list_total = $list['open_tasks']; //count of tasks
+											?>
+											<a data-toggle="collapse" data-parent="#accordion" href="#collapse-<?php echo $list['id']; ?>">
+	        									<?php echo $list['name'];?> (<?php echo $task_list_total;?>)
+	        									<i class="more-less glyphicon glyphicon-plus"></i>
+	        								</a>
+										</h4>
+									</div>
+									<div id="collapse-<?php echo $list['id']; ?>" class="inside panel-collapse collapse">
+										<ul class="main list-group">
 											<?php  
 												foreach ($taskarray as $key => $value) {
 													if($value['taskid'] == $task_list_id){
@@ -343,13 +356,17 @@ class ActiveCollabAPI{
 													}
 												}
 											?>
-										</div><!--main-->	
+										</ul><!--main-->
+										<div class="panel-footer">
+											<?php add_thickbox(); ?>
+											<a href="#TB_inline?width=600&height=320px&inlineId=modal-window-id" class="thickbox" title="Add Task">+ Add a Task</a>
+										</div>	
 									</div><!--inside-->
 								</div><!--postbox-->
 							<?php
 						}
 					?>
-					<div class="" id="loadingDiv">
+					<div class="modal-backdrop in" id="loadingDiv">
 						<img src="<?php echo plugin_dir_url( __FILE__ ) . 'assets/images/loading.jpg'; ?>">
 					</div>
 					<div id="myModal" class="modal fade" role="dialog">
@@ -367,21 +384,45 @@ class ActiveCollabAPI{
 						      	</div>
 						    </div>
 						</div>
-					</div>  
+					</div>
+					<div class="taskAdd collapse" id="modal-window-id">
+						<form id="taskAddForm">
+							<div class="form-group">
+								<label for="addTaskName">Task Name</label>
+								<input type="text" name="addTaskName" id="addTaskName" class="form-control" placeholder="Task Name" required>
+							</div>
+							<div class="form-group">
+								<label for="addTaskAssign">Assignee</label>
+								<select name="addTaskAssign" id="addTaskAssign" class="form-control">
+									<?php  
+	        							$allMembers = $client->get('users')->getJson(); 
+	        							$assignee = self::getAllUsers($allMembers);
+	        						?>
+								</select>
+							</div>
+							<div class="form-group">
+								<label for="addTaskLabels">Labels</label>
+								<select class="form-control" name="addTaskLabels" id="addTaskLabels">
+									<?php 
+										$alllabels = $client->get('labels')->getJson(); 
+										self::getProjectAllLabels($alllabels);
+									?>
+								</select>
+							</div>
+							<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary">
+						</form>
+					</div>
 				</div><!--postbox-container-->
 			</div><!--wrap-->
 		<?php
 	}
 
 	private function subtask_open($subtask_List){
-		//print_r($subtask_List);
-		
-    		foreach ($subtask_List as $slist) {
+		   foreach ($subtask_List as $slist) {
     			if($slist['is_completed'] == ''){
     				echo '<li>'.$slist['name'].'</li>';	
     			}
     		}
-		echo '</div>';
 	}
 
 	private function subtask_close($subtask_List){
@@ -391,6 +432,7 @@ class ActiveCollabAPI{
 				echo '<li>'.$slist['name'].'</li>';	
 			}
 		}
+			
 	}
 	
 
@@ -481,6 +523,7 @@ class ActiveCollabAPI{
 	  die();
 	}
 
+	//jobtypes
 	private function jobtypes($job_types){
 		
 		echo '<option id="">Choose Job Type</option>';
@@ -491,18 +534,43 @@ class ActiveCollabAPI{
 		}
 	}
 
+	//get users
+	private function getAllUsers($allMembers){
+		
+		echo '<option id="">Choose Assignee</option>';
+		foreach ($allMembers as $users) {
+			?>
+				<option id="user_<?php echo $users['id']?>" value="<?php echo $users['id']?>"><?php echo $users['display_name']?></option>
+			<?php
+		}
+	}
+
 	private function getTimeRecordsByTask($time_records){
+		$total_time_records = array();
 		echo '<div>';
 			foreach ($time_records as $time) {
 				//$token = self::getUserAvatar($time['user_id']);
 				echo '<div class="col-md-12 time-records">';
 					echo '<p class="col-md-3">'.gmdate('M-d.Y', $time['record_date']).'</p>';
+						$total_time_records[] = $time['value'];
 					echo '<p class="col-md-3">'.$time['value'].'</p>';
 					echo '<p class="col-md-3">'.$time['created_by_name'].'</p>';
 					echo '<p class="col-md-3">'.$time['summary'].'</p>';
 				echo '</div>';
 			}
+			//print_r($total_time_records);
 		echo '</div>';
+		return array_sum($total_time_records);
+	}
+
+	private function getTotalTimeRecordsByTask($time_records){
+		$total_time_records = array();
+		foreach ($time_records as $time) {
+			//$token = self::getUserAvatar($time['user_id']);
+			$total_time_records[] = $time['value'];
+		}
+		//print_r($total_time_records);
+		return array_sum($total_time_records);
 	}
 
 	private function getUserAvatar($userid){
@@ -515,6 +583,17 @@ class ActiveCollabAPI{
 	   		}
 	   	}
 
+	}
+
+	private function getProjectAllLabels($alllabels){
+		echo '<option id="">Choose Assignee</option>';
+		foreach ($alllabels as $labels) {
+			?>
+				<option id="color_<?php echo $labels['id']?>" value="<?php echo $labels['id']?>" style="color: <?php echo $labels['color']?>">
+					<?php echo $labels['name']?>
+				</option>
+			<?php
+		}
 	}
 	
 }

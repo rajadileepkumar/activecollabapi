@@ -111,12 +111,22 @@ h2.hndle.ui-sortable-handle {
 
 #loadingDiv{
 	display: none;
+	text-align: center;
 }
 
 .modal-footer{
 	margin-top: 20px;
 }
 
+.task_heading{
+	font-weight: bold;
+	margin: 10px 0;
+}
+
+.task_main_heading{
+	font-weight: bold;
+	margin: 0 0 10px;
+}
 .main .task span.task-name {
     padding-left: 12px;
 }
@@ -126,6 +136,52 @@ span.task-icons {
 }
 span.task-label {
     padding-left: 12px;
+}
+
+#accordion .panel-default > .panel-heading{
+	background: #fff;
+	background-color: #fff;
+    border-color: #fff;
+    box-shadow: 0px 1px 1px rgba(0,0,0,0.04);
+    border: none;
+}
+
+#accordion .panel-heading{
+	padding: 20px 15px;
+}
+.panel-group .panel + .panel{
+	margin-top: 20px;
+}
+
+.wrap h2{
+	margin: 20px 0;
+}
+
+.more-less{
+	float: right;
+}
+
+#accordion .panel-default > .panel-heading + .panel-collapse > .panel-body {
+    border-top-color: #B8D6FF;
+    border-bottom: 1px solid #B8D6FF;
+}
+
+#accordion a:focus{
+	outline: none;
+	box-shadow: none;
+	text-decoration: none;
+}
+
+#accordion .panel-body{
+	padding: 15px 0;
+}
+
+ul + a{
+	cursor: pointer;
+}
+
+#taskAddForm {
+    padding: 10px 50px;
 }
 @media (max-width: 760px){
 	.postbox{
