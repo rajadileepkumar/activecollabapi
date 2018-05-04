@@ -1,6 +1,8 @@
 function registerTime(projectId,userId,taskId,time,description,jobId){
   //alert("Project Id"+projectId+"userId"+userId+"taskId"+taskId+"Time"+time+"description"+description+"Job Id"+jobId);
     if(time != '' && description != '' && jobId != ''){
+        $('#addTimeTaskById').attr('disabled','disabled');
+        $(".loader").css("display", "block");    
         $.ajax({
             method:'POST',
             url:ajax_object.ajax_url,
@@ -14,7 +16,8 @@ function registerTime(projectId,userId,taskId,time,description,jobId){
                 'jobId' : jobId,
             },
             success:function(data){
-                //console.log(data)     
+                //console.log(data)  
+                $(".loader").css("display", "none");       
                 window.location.reload(true);
             },
             error:function (errorThrown) {
@@ -46,6 +49,7 @@ $(document).ready(function() {
 });
 
 function getTasksListById(id,urlPath,projectId,userId,taskId){
+    $("#loadingDiv").css("display", "block");
     $.ajax({
         method:'POST',
         url:ajax_object.ajax_url,
@@ -58,6 +62,7 @@ function getTasksListById(id,urlPath,projectId,userId,taskId){
              'taskId':taskId,
         },
         success:function(data){
+            $("#loadingDiv").css("display", "none");
             $('.modal-body > .subTasks').html(data);
             $('#myModal').modal('show');    
         },
@@ -67,13 +72,6 @@ function getTasksListById(id,urlPath,projectId,userId,taskId){
   });  
 }
 
-$(document).ajaxStart(function(){
-    $("#loadingDiv").css("display", "block");
-});
-$(document).ajaxComplete(function(){
-    $("#loadingDiv").css("display", "none");
-});
-
 $(document).ready(function(){
     $('.collapse').on('shown.bs.collapse', function(){
         $(this).parent().find(".glyphicon-plus").removeClass("glyphicon-plus").addClass("glyphicon-minus");
@@ -82,3 +80,90 @@ $(document).ready(function(){
     });
 });
 
+function addTaskToList(taskName,taskList,taskAssign,taskLabel,taskDescription) {
+    //alert(taskName+taskList+taskAssign+taskLabel);
+    
+
+    if(taskName != '' && taskList != '' && taskAssign != '' && taskLabel != '' && taskDescription != ''){
+        $('#addTask').attr('disabled','disabled');
+        $(".loader").css("display", "block");    
+        $.ajax({
+            method:'POST',
+            url:ajax_object.ajax_url,
+            data:{
+                'action' :'a_AddTaskToList',
+                'taskName' : taskName,
+                'taskList' : taskList,
+                'taskAssign' : taskAssign,
+                'taskLabel' : taskLabel,
+                'taskDescription' : taskDescription
+            },
+            success:function(data){
+                //console.log(data)
+                $(".loader").css("display", "none");    
+                window.location.reload(true);
+            },
+            error:function (errorThrown) {
+                console.log(errorThrown)
+            }
+      });  
+    }
+    else{
+        alert('All Mandatory Fields required');
+    }
+}
+
+function addSubTaskToTaskListfun(parentTaskId,subTaskName,subTaskAssignId){
+    //alert(subTaskName+subTaskAssignId);
+    if(subTaskName != '' && subTaskAssignId != ''){
+        $("#loader").css("display", "block");
+        $('#addSubTaskToTaskList').attr('disabled','disabled');    
+        $.ajax({
+            method:'POST',
+            url:ajax_object.ajax_url,
+            data:{
+                'action' :'a_AddSubTaskToList',
+                'parentTaskId' : parentTaskId,
+                'subTaskName' : subTaskName,
+                'subTaskAssignId' : subTaskAssignId,
+            },
+            success:function(data){
+                //console.log(data) 
+                $("#loader").css("display", "none");        
+                window.location.reload(true);
+            },
+            error:function (errorThrown) {
+                console.log(errorThrown)
+            }
+      });  
+    }
+    else{
+        alert('All Mandatory Fields required');
+    }
+}
+
+function addTaskListToList(taskListName){
+    if(taskListName != ''){
+        $("#loader2").css("display", "block");
+        $('#addSubTaskToTaskList').attr('disabled','disabled');    
+        $.ajax({
+            method:'POST',
+            url:ajax_object.ajax_url,
+            data:{
+                'action' :'a_AddTaskList',
+                'taskListName' : taskListName
+            },
+            success:function(data){
+                //console.log(data) 
+                $("#loader2").css("display", "none");        
+                //window.location.reload(true);
+            },
+            error:function (errorThrown) {
+                console.log(errorThrown)
+            }
+      });  
+    }
+    else{
+        alert('All Mandatory Fields required');
+    }
+}

@@ -23,8 +23,17 @@ class ActiveCollabAPI{
 		add_action( 'wp_ajax_nopriv_a_activecollab_settings_saved', array($this,'a_activecollab_settings_saved')); //insert and validate
 		add_action( 'wp_ajax_a_activecollab_settings_saved', array($this,'a_activecollab_settings_saved'));//insert and validate
 
-		add_action( 'wp_ajax_nopriv_a_TaskListByDetailsId', array($this,'a_TaskListByDetailsId')); //insert and validate
-		add_action( 'wp_ajax_a_TaskListByDetailsId', array($this,'a_TaskListByDetailsId'));//insert and validate
+		add_action( 'wp_ajax_nopriv_a_TaskListByDetailsId', array($this,'a_TaskListByDetailsId')); //TaskList Details
+		add_action( 'wp_ajax_a_TaskListByDetailsId', array($this,'a_TaskListByDetailsId'));//TaskList Details
+
+		add_action( 'wp_ajax_nopriv_a_AddTaskToList', array($this,'a_AddTaskToList')); //add Task To TaskList
+		add_action( 'wp_ajax_a_AddTaskToList', array($this,'a_AddTaskToList'));//add Task To TaskList
+
+		add_action( 'wp_ajax_nopriv_a_AddSubTaskToList', array($this,'a_AddSubTaskToList')); //add subTask To Task
+		add_action( 'wp_ajax_a_AddSubTaskToList', array($this,'a_AddSubTaskToList'));//add subTask To Task
+
+		add_action( 'wp_ajax_nopriv_a_AddTaskList', array($this,'a_AddTaskList')); //add TaskList
+		add_action( 'wp_ajax_a_AddTaskList', array($this,'a_AddTaskList'));//add TaskList
 		
 		add_action( 'admin_bar_menu', array($this,'a_toolbar_link_page'),999);//add admin node
 
@@ -68,9 +77,6 @@ class ActiveCollabAPI{
 		wp_enqueue_script('script-js');
 		wp_localize_script( 'script-js', 'ajax_object',
 		                array( 'ajax_url' => admin_url( 'admin-ajax.php' )) );
-		wp_enqueue_script( 'thickbox' );
-		wp_enqueue_style( 'thickbox' );
-        
 	}
 
 	function a_toolbar_link_page($wp_admin_bar){
@@ -143,7 +149,9 @@ class ActiveCollabAPI{
 				echo '('.$totalTimeSpend.'Hours)';
 			}
 		echo '</h4>';
-
+		if(!empty($subtask_List['single']['body'])){
+			echo '<p>'.$subtask_List['single']['body'].'</p>';
+		}
 		if(!empty($subtask_List['subtasks'])){
 			if(!empty($subtask_List['single']['open_subtasks'])){
 				echo '<p class="task_heading">Sub Tasks</p>';
@@ -198,11 +206,83 @@ class ActiveCollabAPI{
 	    			</div>	
 				</div>
     		</div>
+    		<div class="loader"></div>
+    		<div class="sub-task">
+    			<button class="button button-primary" data-toggle="collapse" data-target="#subtask-add">+Add a Subtask</button>
+    			<div id="subtask-add" class="collapse">
+    				<form id="addSubTask" method="post">
+    					<div class="form-group">
+    						<label for="addSubTaskName">Name of the subtask  (<span class="required-field">*</span>)</label>
+							<input type="text" class="form-control control" name="addSubTaskName" id="addSubTaskName" placeholder="Name of the subtask" required maxlength="5" minlength="1">
+    					</div>
+    					<div class="form-group">
+    						<label for="addSubTaskAssign">Choose an assignee (<span class="required-field">*</span>)</label>
+							<select class="form-control control" id="addSubTaskAssign" name="addSubTaskAssign">
+    							<?php  
+        							$allMembers = $client->get('users')->getJson(); 
+				        		    $assignee = self::getAllUsers($allMembers);
+        						?>
+							</select>
+    					</div>
+    					<input type="button" class="btn btn-primary addSubTaskToTask" id="addSubTaskToTaskList" name="addSubTaskToTaskList" value="Add subtask" onclick="javascript:addSubTaskToTaskListfun(<?php echo $subtask_List['single']['id'] ?>,document.getElementById('addSubTaskName').value,document.getElementById('addSubTaskAssign').value)">
+    				</form>
+				</div>
+    		</div>
+    		<div id="loader"></div>
 		<?php
 		
 		die();
 	}
 	
+	function a_AddTaskToList(){
+		$taskName = sanitize_text_field($_POST['taskName']);
+	    $taskList = sanitize_text_field($_POST['taskList']);
+	    $taskAssign = sanitize_text_field($_POST['taskAssign']);
+	    $taskLabel = sanitize_text_field($_POST['taskLabel']);
+	    $taskDescription = sanitize_text_field($_POST['taskDescription']);
+	    $token = self::a_configuration_settings();
+	    if($token){
+		   $client = new \ActiveCollab\SDK\Client($token['0']);
+		   $taskLabelParams = $client->get('/labels/'.$taskLabel)->getJson();
+			//print_r($taskLabelParams);
+			$params = array(
+		    	"name" => $taskName,
+		    	"task_list_id" => $taskList,
+		    	"assignee_id" => $taskAssign,
+		    	"body" => $taskDescription,
+		    	"labels" => array(
+		    		"name" => $taskLabelParams['single']['name'],
+		    	)
+		    );
+		    //print_r($params);
+		   $task = $client->post('/projects/'.$token['1'].'/tasks',$params);
+		   if($task){
+		   	//print_r($task);										        			
+		   }
+		}
+	    die();
+	}
+
+	function a_AddSubTaskToList(){
+		$subTaskName = sanitize_text_field($_POST['subTaskName']);
+		$subTaskAssignId = sanitize_text_field($_POST['subTaskAssignId']);
+		$parentTaskId = sanitize_text_field($_POST['parentTaskId']);
+
+		
+		$params = array(
+			"body" => $subTaskName,
+    		"assignee_id" => $subTaskAssignId
+		);
+		$token = self::a_configuration_settings();
+	    if($token){
+		   $client = new \ActiveCollab\SDK\Client($token['0']);
+		   $subtask = $client->post('/projects/'.$token['1'].'/tasks/'.$parentTaskId.'/subtasks',$params);
+		   if($subtask){
+		   	//print_r($subtask);										        			
+		   }
+		}
+		die();
+	}
 	function a_collab_settings(){
 		?>	
 			<div class="wrap">
@@ -358,61 +438,118 @@ class ActiveCollabAPI{
 											?>
 										</ul><!--main-->
 										<div class="panel-footer">
-											<?php add_thickbox(); ?>
-											<a href="#TB_inline?width=600&height=320px&inlineId=modal-window-id" class="thickbox" title="Add Task">+ Add a Task</a>
-										</div>	
+											<a href="#" data-toggle="modal" data-target=".taskModal">+ Add a Task</a>
+										</div>
 									</div><!--inside-->
-								</div><!--postbox-->
+								</div><!--panel-default-->
 							<?php
 						}
 					?>
-					<div class="modal-backdrop in" id="loadingDiv">
-						<img src="<?php echo plugin_dir_url( __FILE__ ) . 'assets/images/loading.jpg'; ?>">
-					</div>
-					<div id="myModal" class="modal fade" role="dialog">
-						<div class="modal-dialog">
-					    	<div class="modal-content">
-						    	<div class="modal-header">
-						        	<button type="button" class="close" data-dismiss="modal">&times;</button>
-						        	<h4 class="modal-title">List Of Task Details</h4>
-						      	</div>
-						    	<div class="modal-body">
-						    		<div class="subTasks"></div>
-						    	</div>
-						    	<div class="modal-footer">
-						        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-						      	</div>
-						    </div>
+				</div><!--panel-group-->
+				
+				<div class="modal-backdrop in" id="loadingDiv"><!--loaderimage-->
+					<img src="<?php echo plugin_dir_url( __FILE__ ) . 'assets/images/loading.jpg'; ?>">
+				</div><!--loaderimage-->
+				
+				<div id="myModal" class="modal fade" role="dialog">
+					<div class="modal-dialog">
+				    	<div class="modal-content">
+					    	<div class="modal-header">
+					        	<button type="button" class="close" data-dismiss="modal">&times;</button>
+					        	<h4 class="modal-title">List Of Task Details</h4>
+					      	</div>
+					    	<div class="modal-body">
+					    		<div class="subTasks"></div>
+					    	</div>
+					    	<div class="modal-footer">
+					        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					      	</div>
+					    </div>
+					</div><!--Task Details view-->
+				</div><!--Task Details view-->
+				
+				<div id="" class="taskModal modal fade" role="dialog">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header">
+								<button type="button" class="close" data-dismiss="modal">&times;</button>
+					        	<h4 class="modal-title">Add Task</h4>
+							</div>
+							<div class="modal-body">
+								<form id="taskAddForm">
+									<div class="form-group">
+										<label for="addTaskName">Task Name (<span class="required-field">*</span>)</label>
+										<input type="text" name="addTaskName" id="addTaskName" class="form-control" placeholder="Task Name" required>
+									</div>
+									<div class="form-group">
+										<label for="addTaskDescription">Task Description (<span class="required-field">*</span>)</label>
+										<textarea name="addTaskDescription" id="addTaskDescription" class="form-control" placeholder="Task Description" required cols="30" rows="5"></textarea>
+									</div>
+									<div class="form-group">
+										<label for="addTaskList">Task List (<span class="required-field">*</span>)</label>
+										<select name="addTaskList" id="addTaskList" class="form-control">
+											<?php  
+			        							$allTaskList = $client->get('projects/'.$token['1'].'/task-lists')->getJson(); 
+			        							$taskList = self::getAllTaskList($allTaskList);
+			        						?>
+										</select>
+									</div>
+									<div class="form-group">
+										<label for="addTaskAssign">Assignee (<span class="required-field">*</span>)</label>
+										<select name="addTaskAssign" id="addTaskAssign" class="form-control">
+											<?php  
+			        							$allMembers = $client->get('users')->getJson(); 
+			        							$assignee = self::getAllUsers($allMembers);
+			        						?>
+										</select>
+									</div>
+									<div class="form-group">
+										<label for="addTaskLabels">Labels (<span class="required-field">*</span>)</label>
+										<select class="form-control" name="addTaskLabels" id="addTaskLabels">
+											<?php 
+												$alllabels = $client->get('labels')->getJson(); 
+												self::getProjectAllLabels($alllabels);
+											?>
+										</select>
+									</div>
+									<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary" onclick="javascript:addTaskToList(document.getElementById('addTaskName').value,document.getElementById('addTaskList').value,document.getElementById('addTaskAssign').value,document.getElementById('addTaskLabels').value,document.getElementById('addTaskDescription').value)">
+								</form>
+								<div class="loader"></div>
+							</div>
+							<div class="modal-footer">
+					        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					      	</div>
 						</div>
-					</div>
-					<div class="taskAdd collapse" id="modal-window-id">
-						<form id="taskAddForm">
-							<div class="form-group">
-								<label for="addTaskName">Task Name</label>
-								<input type="text" name="addTaskName" id="addTaskName" class="form-control" placeholder="Task Name" required>
+					</div><!--add a Task-->
+				</div><!--add a Task-->
+				
+				<div class="addTaskList"> <!--add a Task List Popup-->
+					<a href="#" data-toggle="modal" data-target="#taskListModal">+ Add a Task List</a>
+				</div><!--add a Task List Popup-->
+
+				<div id="taskListModal" class="modal fade" role="dialog">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header">
+								<button type="button" class="close" data-dismiss="modal">&times;</button>
+					        	<h4 class="modal-title">Add Task List</h4>
 							</div>
-							<div class="form-group">
-								<label for="addTaskAssign">Assignee</label>
-								<select name="addTaskAssign" id="addTaskAssign" class="form-control">
-									<?php  
-	        							$allMembers = $client->get('users')->getJson(); 
-	        							$assignee = self::getAllUsers($allMembers);
-	        						?>
-								</select>
+							<div class="modal-body">
+								<form id="taskAddForm">
+									<div class="form-group">
+										<label for="addTaskListName">Task List Name (<span class="required-field">*</span>)</label>
+										<input type="text" name="addTaskListName" id="addTaskListName" class="form-control" placeholder="Name of the task list name" required>
+									</div>
+									<input type="button" name="addTaskListButton" id="addTaskListButton" value="Add Task List" class="button button-primary" onclick="javascript:addTaskListToList(document.getElementById('addTaskListName').value)">
+								</form>
+								<div id="loader2"></div>
 							</div>
-							<div class="form-group">
-								<label for="addTaskLabels">Labels</label>
-								<select class="form-control" name="addTaskLabels" id="addTaskLabels">
-									<?php 
-										$alllabels = $client->get('labels')->getJson(); 
-										self::getProjectAllLabels($alllabels);
-									?>
-								</select>
-							</div>
-							<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary">
-						</form>
-					</div>
-				</div><!--postbox-container-->
+							<div class="modal-footer">
+					        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+					      	</div>
+						</div>
+					</div><!--add a Task--><!--add a Task List-->
+				</div><!--add a Task List-->
 			</div><!--wrap-->
 		<?php
 	}
@@ -586,7 +723,7 @@ class ActiveCollabAPI{
 	}
 
 	private function getProjectAllLabels($alllabels){
-		echo '<option id="">Choose Assignee</option>';
+		echo '<option id="">Choose Label</option>';
 		foreach ($alllabels as $labels) {
 			?>
 				<option id="color_<?php echo $labels['id']?>" value="<?php echo $labels['id']?>" style="color: <?php echo $labels['color']?>">
@@ -596,6 +733,17 @@ class ActiveCollabAPI{
 		}
 	}
 	
+	private function getAllTaskList($allTaskList){
+
+		echo '<option id="">Choose Task List</option>';
+		foreach ($allTaskList as $tList) {
+			?>
+				<option id="taskList_<?php echo $tList['id']?>" value="<?php echo $tList['id']?>">
+					<?php echo $tList['name']?>
+				</option>
+			<?php
+		}
+	}
 }
 
 $obj = new ActiveCollabAPI();
