@@ -36,7 +36,7 @@ $(document).on("click", "#signin", function () {
 	            'activeCollabProjectId' : activeCollabProjectId,
 	        },
 	        success:function(data){
-	            $('#submitErrorMsg').html(data);    
+	        	window.location.href = data;
 	        },
 	        error:function (errorThrown) {
 	            console.log(errorThrown)

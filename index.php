@@ -42,7 +42,7 @@ class ActiveCollabAPI{
 	function a_collab_menu(){
 		$menu = add_menu_page( 'Active Collab', 'Active Collab', 'manage_options', 'a_collab_menu_slug', array($this,'a_collab_menu_page'), '', null );
 		add_submenu_page( 'a_collab_menu_slug', 'Active Collab Settings', 'Settings','manage_options','a_collab_menu_settings', array($this,'a_collab_settings'));
-		add_submenu_page( '','Project Task List', 'Task List', 'manage_options', 'a_task_list', array($this,'a_task_list'));
+		add_submenu_page( '','Account Settings', 'Account Settings', 'manage_options', 'a_account_collab_settings', array($this,'a_account_collab_settings'));
 
 		add_action( 'admin_print_styles-' . $menu, array($this,'a_collab_styles')); //to load styles page level
 		add_action('admin_print_scripts-' . $menu,array($this,'a_collab_scripts')); //to load scripts page level
@@ -99,6 +99,68 @@ class ActiveCollabAPI{
         $wp_admin_bar->add_node( $args );
 	}
 
+	function a_account_collab_settings(){
+		$userId = get_current_user_id();
+		$optionName = 'active_collab_setting_'.$userId; //generating settings name
+		$option_exists = get_option($optionName, null);
+		$unserializeArray = unserialize($option_exists);
+		?>
+			<div class="wrap">
+				<h2>Active Collab Settings</h2>
+				<form action="" method="post" id="aSettingsForm">
+					<table class="form-table">
+						<tbody>
+							<tr>
+								<th scope="row">
+									<label for="activeCollabTokenId">Token Id (<span class="required-field">*</span>)</label>
+								</th>
+								<td>
+									<input type="text" name="activeCollabTokenId" id="activeCollabTokenId" placeholder="Token Id" class="regular-text" required value="<?php echo $unserializeArray['1'] ?>" maxlength="10" minlength="5">
+									<p id="msg"></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label for="activeCollabCompanyName">Company Name (<span class="required-field">*</span>)</label>
+								</th>
+								<td>
+									<input type="text" name="activeCollabCompanyName" id="activeCollabCompanyName" placeholder="Company Name" class="regular-text" required value="<?php echo $unserializeArray['2'] ?>">
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label for="userLogin">User Login (<span class="required-field">*</span>)</label>
+								</th>
+								<td>
+									<input type="email" name="userName" id="userName" placeholder="Email" class="regular-text" value = "<?php echo $unserializeArray['3'] ?>" required>
+								</td>	
+							</tr>
+							<tr>
+								<th scope="row">
+									<label for="userPassword">User Password (<span class="required-field">*</span>)</label>
+								</th>
+								<td>
+									<input type="password" name="userPassword" id="userPassword" placeholder="Password" class="regular-text" required value="<?php echo $unserializeArray['4'] ?>">
+								</td>
+							</tr>
+							<tr>
+								<th scope="row">
+									<label for="activeCollabProjectId">Project Id (<span class="required-field">*</span>)</label>
+								</th>
+								<td>
+									<input type="text" name="activeCollabProjectId" id="activeCollabProjectId" placeholder="Project Id" class="regular-text" required value="<?php echo $unserializeArray['5'] ?>">
+								</td>
+							</tr>
+						</tbody>
+					</table>
+					<p>
+						<input type="button" name="signin" id="signin" value="Save" class="button button-primary">
+					</p>
+					<p id="submitErrorMsg"></p>
+				</form>
+			</div>
+		<?php 
+	}
 	function a_activecollab_settings_saved(){
 		$userId = get_current_user_id();
 		$activeCollabTokenId = (int)sanitize_text_field($_POST['activeCollabTokenId']);
@@ -106,7 +168,7 @@ class ActiveCollabAPI{
 		$userName = sanitize_text_field($_POST['userName']);
 		$userPassword = sanitize_text_field($_POST['userPassword']);
 		$activeCollabProjectId = sanitize_text_field($_POST['activeCollabProjectId']);
-
+		$url = esc_url( admin_url( 'admin.php?page=a_collab_menu_settings' ) );
 		//echo $userId.$activeCollabTokenId.$activeCollabCompanyName.$userName.$userPassword.$activeCollabProjectId;
 		$active_Serilizedarray = serialize(array($userId,$activeCollabTokenId,$activeCollabCompanyName,$userName,$userPassword,$activeCollabProjectId));
 		
@@ -115,11 +177,13 @@ class ActiveCollabAPI{
 		
 		if($option_exists){
 			update_option( $optionName, $active_Serilizedarray, 'yes'); //update settings
-			echo "Updated Settings";
+			echo $url;
+			
 		}
 		else{
 			add_option($optionName, $active_Serilizedarray, '', 'yes'); //insert settings
-			echo "Settings Inserted";
+			//echo "Settings Inserted";
+			echo $url;
 		}
 		die();
 	}
@@ -283,275 +347,273 @@ class ActiveCollabAPI{
 		}
 		die();
 	}
+
+	function a_AddTaskList(){
+		$taskListName = sanitize_text_field($_POST['taskListName']);
+		$params = array(
+			"name" => $taskListName,
+		);
+		$token = self::a_configuration_settings();
+	    if($token){
+		   $client = new \ActiveCollab\SDK\Client($token['0']);
+		   $taskList = $client->post('/projects/'.$token['1'].'/task-lists',$params);
+		   if($taskList){
+		   	print_r($taskList);										        			
+		   }
+		}
+		die();
+	}
 	function a_collab_settings(){
 		?>	
 			<div class="wrap">
-				<h2>Active Collab Settings</h2>
+				<div id="activeBox">
+					<p>
+						<?php 
+							$userId = get_current_user_id();
+							$optionName = 'active_collab_setting_'.$userId; //generating settings name
+							$option_exists = (get_option($optionName, null) !== null);
+							if($option_exists){
+								?>
+									<span>Update ActiveLink Account</span>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=a_account_collab_settings' ) )?>" class="button button-primary">Update Account</a>
+								<?php
+							}
+							else{
+								?>
+									<span>Link With Active Collab Account</span>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=a_account_collab_settings' ) )?>" class="button button-primary">Add Account</a>
+								<?php
+							} 
+						?>
+					</p>
+				</div>
 			</div>
-			<form action="" method="post" id="aSettingsForm">
-				<table class="form-table">
-					<tbody>
-						<tr>
-							<th scope="row">
-								<label for="activeCollabTokenId">Token Id (<span class="required-field">*</span>)</label>
-							</th>
-							<td>
-								<input type="text" name="activeCollabTokenId" id="activeCollabTokenId" placeholder="Token Id" class="regular-text" required value="173387" maxlength="10" minlength="5">
-								<p id="msg"></p>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="activeCollabCompanyName">Company Name (<span class="required-field">*</span>)</label>
-							</th>
-							<td>
-								<input type="text" name="activeCollabCompanyName" id="activeCollabCompanyName" placeholder="Company Name" class="regular-text" required value="Utthunga">
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="userLogin">User Login (<span class="required-field">*</span>)</label>
-							</th>
-							<td>
-								<input type="email" name="userName" id="userName" placeholder="Email" class="regular-text" required>
-							</td>	
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="userPassword">User Password (<span class="required-field">*</span>)</label>
-							</th>
-							<td>
-								<input type="password" value="Kumdilrajutt@123" name="userPassword" id="userPassword" placeholder="Password" class="regular-text" required>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="activeCollabProjectId">Project Id (<span class="required-field">*</span>)</label>
-							</th>
-							<td>
-								<input type="text" value="" name="activeCollabProjectId" id="activeCollabProjectId" placeholder="Project Id" class="regular-text" required>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-				<p>
-					<input type="button" name="signin" id="signin" value="Save" class="button button-primary">
-					<p id="submitErrorMsg"></p>
-				</p>
-			</form>
 		<?php
 	}
 
 	function a_collab_menu_page(){
-		?>
-			<div class="wrap">
-				<?php 
-					$token = self::a_configuration_settings();
-					$client;
-					if($token){
-						$client = new \ActiveCollab\SDK\Client($token['0']); 
-						$projectName = $client->get('projects/'.$token['1'])->getJson();
-						$user = $token['2'];
-						$token_Id =  explode("-",$token['0']->getToken());//userid
-					}
-				?>
-				<h2>Active Collab<span> --<?php echo $user['first_name']." ".$user['last_name'];?></span><span> --<?php echo $projectName['single']['name']; ?></span>
-				</h2>
-				<div class="panel-group" id="accordion">
-					<?php
-						$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
-						//echo '<pre>' . print_r($taskList, true) . '</pre>';
-						//exit;
-						$taskarray = array();
-						foreach ($taskList['tasks'] as $tsklist) {
-							$taskarray[$tsklist['name']]['taskid'] = $tsklist['task_list_id'];
-							$taskarray[$tsklist['name']]['label'] = $tsklist['labels'][0]['name'];
-							$taskarray[$tsklist['name']]['color'] = $tsklist['labels'][0]['color'];
-							$taskarray[$tsklist['name']]['assignee_name'] = $tsklist['fake_assignee_name'];
-							$taskarray[$tsklist['name']]['open_sub_task'] = $tsklist['open_subtasks'];
-							$taskarray[$tsklist['name']]['url_path'] = $tsklist['url_path'];
-							$taskarray[$tsklist['name']]['close_sub_task'] = $tsklist['completed_subtasks'];
-							$taskarray[$tsklist['name']]['job_type_id'] = $tsklist['job_type_id'];
-							$taskarray[$tsklist['name']]['id'] = $tsklist['id'];
-							$taskarray[$tsklist['name']]['comments_count'] = $tsklist['comments_count'];
-							$taskarray[$tsklist['name']]['created_by_name'] = $tsklist['created_by_name'];
-							$taskarray[$tsklist['name']]['created_by_email'] = $tsklist['created_by_email'];
-							
-						}
-						foreach ($taskList['task_lists'] as $list) {
-							?>
-								<div class="panel panel-default">
-									<div class="panel-heading">
-										<h4 class="panel-title">
-											<?php
-												$task_list_id = $list['id'];
-												$task_list_total = $list['open_tasks']; //count of tasks
-											?>
-											<a data-toggle="collapse" data-parent="#accordion" href="#collapse-<?php echo $list['id']; ?>">
-	        									<?php echo $list['name'];?> (<?php echo $task_list_total;?>)
-	        									<i class="more-less glyphicon glyphicon-plus"></i>
-	        								</a>
-										</h4>
-									</div>
-									<div id="collapse-<?php echo $list['id']; ?>" class="inside panel-collapse collapse">
-										<ul class="main list-group">
-											<?php  
-												foreach ($taskarray as $key => $value) {
-													if($value['taskid'] == $task_list_id){
-														$value['id']."taskid";
-														$url_path = "'".$value['url_path']."'";	
-														$taskclass = str_replace(' ', '-', strtolower($key));
-														if(!empty($value['assignee_name'])){
-															$assignee = $value['assignee_name'];
-														}
 
-														if(!empty($value['created_by_name'])){
-															$created_by_name = $value['created_by_name'];
-														}
-
-														echo '<div class="task" id="list-'.$value['id'].'-'.$taskclass.'" onclick="javascript:getTasksListById(this.id,'.$url_path.','.$token['1'].','.$token_Id['0'].','.$value['id'].')" data-id="'.$key.'">';
-															
-															echo '<span class="task-name">'.$key.'<sub>-'.$created_by_name.'</span>';
-															echo '<span class="glyphicon glyphicon-triangle-top pull-right"></span>';
-															if(!empty($value['label'])){
-																echo '<span class="task-label" style="color:'.$value['color'].'">'.$value['label'].'</span>';
-															}
-
-															if(!empty($value['open_sub_task'])){
-																echo '<span class="task-icons glyphicon glyphicon-tasks"></span>';
-																echo '<span class="count-task">'.$value['open_sub_task'].'</span>';
-															}
-
-															if(!empty($value['close_sub_task'])){
-																echo '<span class="task-icons glyphicon glyphicon-menu-hamburger"></span>';
-																echo '<span class="count-task">'.$value['close_sub_task'].'</span>';
-															}
-
-															if(!empty($value['comments_count'])){
-																echo '<span class="task-icons glyphicon glyphicon-comment"></span>';
-																echo '<span class="count-task">'.$value['comments_count'].'</span>';
-															}
-															
-														echo '</div>';
-													}
-												}
-											?>
-										</ul><!--main-->
-										<div class="panel-footer">
-											<a href="#" data-toggle="modal" data-target=".taskModal">+ Add a Task</a>
-										</div>
-									</div><!--inside-->
-								</div><!--panel-default-->
-							<?php
+		$userId = get_current_user_id();
+		$optionName = 'active_collab_setting_'.$userId; //generating settings name
+		$option_exists = (get_option($optionName, null) !== null);
+		if($option_exists){
+			?>
+				<div class="wrap">
+					<?php 
+						$token = self::a_configuration_settings();
+						$client;
+						if($token){
+							$client = new \ActiveCollab\SDK\Client($token['0']); 
+							$projectName = $client->get('projects/'.$token['1'])->getJson();
+							$user = $token['2'];
+							$token_Id =  explode("-",$token['0']->getToken());//userid
 						}
 					?>
-				</div><!--panel-group-->
-				
-				<div class="modal-backdrop in" id="loadingDiv"><!--loaderimage-->
-					<img src="<?php echo plugin_dir_url( __FILE__ ) . 'assets/images/loading.jpg'; ?>">
-				</div><!--loaderimage-->
-				
-				<div id="myModal" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-				    	<div class="modal-content">
-					    	<div class="modal-header">
-					        	<button type="button" class="close" data-dismiss="modal">&times;</button>
-					        	<h4 class="modal-title">List Of Task Details</h4>
-					      	</div>
-					    	<div class="modal-body">
-					    		<div class="subTasks"></div>
-					    	</div>
-					    	<div class="modal-footer">
-					        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-					      	</div>
-					    </div>
-					</div><!--Task Details view-->
-				</div><!--Task Details view-->
-				
-				<div id="" class="taskModal modal fade" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<button type="button" class="close" data-dismiss="modal">&times;</button>
-					        	<h4 class="modal-title">Add Task</h4>
-							</div>
-							<div class="modal-body">
-								<form id="taskAddForm">
-									<div class="form-group">
-										<label for="addTaskName">Task Name (<span class="required-field">*</span>)</label>
-										<input type="text" name="addTaskName" id="addTaskName" class="form-control" placeholder="Task Name" required>
-									</div>
-									<div class="form-group">
-										<label for="addTaskDescription">Task Description (<span class="required-field">*</span>)</label>
-										<textarea name="addTaskDescription" id="addTaskDescription" class="form-control" placeholder="Task Description" required cols="30" rows="5"></textarea>
-									</div>
-									<div class="form-group">
-										<label for="addTaskList">Task List (<span class="required-field">*</span>)</label>
-										<select name="addTaskList" id="addTaskList" class="form-control">
-											<?php  
-			        							$allTaskList = $client->get('projects/'.$token['1'].'/task-lists')->getJson(); 
-			        							$taskList = self::getAllTaskList($allTaskList);
-			        						?>
-										</select>
-									</div>
-									<div class="form-group">
-										<label for="addTaskAssign">Assignee (<span class="required-field">*</span>)</label>
-										<select name="addTaskAssign" id="addTaskAssign" class="form-control">
-											<?php  
-			        							$allMembers = $client->get('users')->getJson(); 
-			        							$assignee = self::getAllUsers($allMembers);
-			        						?>
-										</select>
-									</div>
-									<div class="form-group">
-										<label for="addTaskLabels">Labels (<span class="required-field">*</span>)</label>
-										<select class="form-control" name="addTaskLabels" id="addTaskLabels">
-											<?php 
-												$alllabels = $client->get('labels')->getJson(); 
-												self::getProjectAllLabels($alllabels);
-											?>
-										</select>
-									</div>
-									<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary" onclick="javascript:addTaskToList(document.getElementById('addTaskName').value,document.getElementById('addTaskList').value,document.getElementById('addTaskAssign').value,document.getElementById('addTaskLabels').value,document.getElementById('addTaskDescription').value)">
-								</form>
-								<div class="loader"></div>
-							</div>
-							<div class="modal-footer">
-					        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-					      	</div>
-						</div>
-					</div><!--add a Task-->
-				</div><!--add a Task-->
-				
-				<div class="addTaskList"> <!--add a Task List Popup-->
-					<a href="#" data-toggle="modal" data-target="#taskListModal">+ Add a Task List</a>
-				</div><!--add a Task List Popup-->
+					<h2>Active Collab<span> --<?php echo $user['first_name']." ".$user['last_name'];?></span><span> --<?php echo $projectName['single']['name']; ?></span>
+					</h2>
+					<div class="panel-group" id="accordion">
+						<?php
+							$taskList = $client->get('projects/'.$token['1'].'/tasks')->getJson();
+							//echo '<pre>' . print_r($taskList, true) . '</pre>';
+							//exit;
+							$taskarray = array();
+							foreach ($taskList['tasks'] as $tsklist) {
+								$taskarray[$tsklist['name']]['taskid'] = $tsklist['task_list_id'];
+								$taskarray[$tsklist['name']]['label'] = $tsklist['labels'][0]['name'];
+								$taskarray[$tsklist['name']]['color'] = $tsklist['labels'][0]['color'];
+								$taskarray[$tsklist['name']]['assignee_name'] = $tsklist['fake_assignee_name'];
+								$taskarray[$tsklist['name']]['open_sub_task'] = $tsklist['open_subtasks'];
+								$taskarray[$tsklist['name']]['url_path'] = $tsklist['url_path'];
+								$taskarray[$tsklist['name']]['close_sub_task'] = $tsklist['completed_subtasks'];
+								$taskarray[$tsklist['name']]['job_type_id'] = $tsklist['job_type_id'];
+								$taskarray[$tsklist['name']]['id'] = $tsklist['id'];
+								$taskarray[$tsklist['name']]['comments_count'] = $tsklist['comments_count'];
+								$taskarray[$tsklist['name']]['created_by_name'] = $tsklist['created_by_name'];
+								$taskarray[$tsklist['name']]['created_by_email'] = $tsklist['created_by_email'];
+								
+							}
+							foreach ($taskList['task_lists'] as $list) {
+								?>
+									<div class="panel panel-default">
+										<div class="panel-heading">
+											<h4 class="panel-title">
+												<?php
+													$task_list_id = $list['id'];
+													$task_list_total = $list['open_tasks']; //count of tasks
+												?>
+												<a data-toggle="collapse" data-parent="#accordion" href="#collapse-<?php echo $list['id']; ?>">
+		        									<?php echo $list['name'];?> (<?php echo $task_list_total;?>)
+		        									<i class="more-less glyphicon glyphicon-plus"></i>
+		        								</a>
+											</h4>
+										</div>
+										<div id="collapse-<?php echo $list['id']; ?>" class="inside panel-collapse collapse">
+											<ul class="main list-group">
+												<?php  
+													foreach ($taskarray as $key => $value) {
+														if($value['taskid'] == $task_list_id){
+															$value['id']."taskid";
+															$url_path = "'".$value['url_path']."'";	
+															$taskclass = str_replace(' ', '-', strtolower($key));
+															if(!empty($value['assignee_name'])){
+																$assignee = $value['assignee_name'];
+															}
 
-				<div id="taskListModal" class="modal fade" role="dialog">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<button type="button" class="close" data-dismiss="modal">&times;</button>
-					        	<h4 class="modal-title">Add Task List</h4>
+															if(!empty($value['created_by_name'])){
+																$created_by_name = $value['created_by_name'];
+															}
+
+															echo '<div class="task" id="list-'.$value['id'].'-'.$taskclass.'" onclick="javascript:getTasksListById(this.id,'.$url_path.','.$token['1'].','.$token_Id['0'].','.$value['id'].')" data-id="'.$key.'">';
+																
+																echo '<span class="task-name">'.$key.'<sub>-'.$created_by_name.'</span>';
+																echo '<span class="glyphicon glyphicon-triangle-top pull-right"></span>';
+																if(!empty($value['label'])){
+																	echo '<span class="task-label" style="color:'.$value['color'].'">'.$value['label'].'</span>';
+																}
+
+																if(!empty($value['open_sub_task'])){
+																	echo '<span class="task-icons glyphicon glyphicon-tasks"></span>';
+																	echo '<span class="count-task">'.$value['open_sub_task'].'</span>';
+																}
+
+																if(!empty($value['close_sub_task'])){
+																	echo '<span class="task-icons glyphicon glyphicon-menu-hamburger"></span>';
+																	echo '<span class="count-task">'.$value['close_sub_task'].'</span>';
+																}
+
+																if(!empty($value['comments_count'])){
+																	echo '<span class="task-icons glyphicon glyphicon-comment"></span>';
+																	echo '<span class="count-task">'.$value['comments_count'].'</span>';
+																}
+																
+															echo '</div>';
+														}
+													}
+												?>
+											</ul><!--main-->
+											<div class="panel-footer">
+												<a href="#" data-toggle="modal" data-target=".taskModal">+ Add a Task</a>
+											</div>
+										</div><!--inside-->
+									</div><!--panel-default-->
+								<?php
+							}
+						?>
+					</div><!--panel-group-->
+					
+					<div class="modal-backdrop in" id="loadingDiv"><!--loaderimage-->
+						<img src="<?php echo plugin_dir_url( __FILE__ ) . 'assets/images/loading.jpg'; ?>">
+					</div><!--loaderimage-->
+					
+					<div id="myModal" class="modal fade" role="dialog">
+						<div class="modal-dialog">
+					    	<div class="modal-content">
+						    	<div class="modal-header">
+						        	<button type="button" class="close" data-dismiss="modal">&times;</button>
+						        	<h4 class="modal-title">List Of Task Details</h4>
+						      	</div>
+						    	<div class="modal-body">
+						    		<div class="subTasks"></div>
+						    	</div>
+						    	<div class="modal-footer">
+						        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						      	</div>
+						    </div>
+						</div><!--Task Details view-->
+					</div><!--Task Details view-->
+					
+					<div id="" class="taskModal modal fade" role="dialog">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<button type="button" class="close" data-dismiss="modal">&times;</button>
+						        	<h4 class="modal-title">Add Task</h4>
+								</div>
+								<div class="modal-body">
+									<form id="taskAddForm">
+										<div class="form-group">
+											<label for="addTaskName">Task Name (<span class="required-field">*</span>)</label>
+											<input type="text" name="addTaskName" id="addTaskName" class="form-control" placeholder="Task Name" required>
+										</div>
+										<div class="form-group">
+											<label for="addTaskDescription">Task Description (<span class="required-field">*</span>)</label>
+											<textarea name="addTaskDescription" id="addTaskDescription" class="form-control" placeholder="Task Description" required cols="30" rows="5"></textarea>
+										</div>
+										<div class="form-group">
+											<label for="addTaskList">Task List (<span class="required-field">*</span>)</label>
+											<select name="addTaskList" id="addTaskList" class="form-control">
+												<?php  
+				        							$allTaskList = $client->get('projects/'.$token['1'].'/task-lists')->getJson(); 
+				        							$taskList = self::getAllTaskList($allTaskList);
+				        						?>
+											</select>
+										</div>
+										<div class="form-group">
+											<label for="addTaskAssign">Assignee (<span class="required-field">*</span>)</label>
+											<select name="addTaskAssign" id="addTaskAssign" class="form-control">
+												<?php  
+				        							$allMembers = $client->get('users')->getJson(); 
+				        							$assignee = self::getAllUsers($allMembers);
+				        						?>
+											</select>
+										</div>
+										<div class="form-group">
+											<label for="addTaskLabels">Labels (<span class="required-field">*</span>)</label>
+											<select class="form-control" name="addTaskLabels" id="addTaskLabels">
+												<?php 
+													$alllabels = $client->get('labels')->getJson(); 
+													self::getProjectAllLabels($alllabels);
+												?>
+											</select>
+										</div>
+										<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary" onclick="javascript:addTaskToList(document.getElementById('addTaskName').value,document.getElementById('addTaskList').value,document.getElementById('addTaskAssign').value,document.getElementById('addTaskLabels').value,document.getElementById('addTaskDescription').value)">
+									</form>
+									<div class="loader"></div>
+								</div>
+								<div class="modal-footer">
+						        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						      	</div>
 							</div>
-							<div class="modal-body">
-								<form id="taskAddForm">
-									<div class="form-group">
-										<label for="addTaskListName">Task List Name (<span class="required-field">*</span>)</label>
-										<input type="text" name="addTaskListName" id="addTaskListName" class="form-control" placeholder="Name of the task list name" required>
-									</div>
-									<input type="button" name="addTaskListButton" id="addTaskListButton" value="Add Task List" class="button button-primary" onclick="javascript:addTaskListToList(document.getElementById('addTaskListName').value)">
-								</form>
-								<div id="loader2"></div>
+						</div><!--add a Task-->
+					</div><!--add a Task-->
+					
+					<div class="addTaskList"> <!--add a Task List Popup-->
+						<a href="#" data-toggle="modal" data-target="#taskListModal">+ Add a Task List</a>
+					</div><!--add a Task List Popup-->
+
+					<div id="taskListModal" class="modal fade" role="dialog">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<button type="button" class="close" data-dismiss="modal">&times;</button>
+						        	<h4 class="modal-title">Add Task List</h4>
+								</div>
+								<div class="modal-body">
+									<form id="taskAddForm">
+										<div class="form-group">
+											<label for="addTaskListName">Task List Name (<span class="required-field">*</span>)</label>
+											<input type="text" name="addTaskListName" id="addTaskListName" class="form-control" placeholder="Name of the task list name" required>
+										</div>
+										<input type="button" name="addTaskListButton" id="addTaskListButton" value="Add Task List" class="button button-primary" onclick="javascript:addTaskListToList(document.getElementById('addTaskListName').value)">
+									</form>
+									<div id="loader2"></div>
+								</div>
+								<div class="modal-footer">
+						        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+						      	</div>
 							</div>
-							<div class="modal-footer">
-					        	<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-					      	</div>
-						</div>
-					</div><!--add a Task--><!--add a Task List-->
-				</div><!--add a Task List-->
-			</div><!--wrap-->
-		<?php
+						</div><!--add a Task--><!--add a Task List-->
+					</div><!--add a Task List-->
+				</div><!--wrap-->
+			<?php
+		}
+		else{
+			?>
+				<div class="wrap">
+					<p>Update/Create Active Collab Settings</p>
+				</div>
+			<?php
+		}
 	}
 
 	private function subtask_open($subtask_List){
@@ -689,15 +751,12 @@ class ActiveCollabAPI{
 				//$token = self::getUserAvatar($time['user_id']);
 				echo '<div class="col-md-12 time-records">';
 					echo '<p class="col-md-3">'.gmdate('M-d.Y', $time['record_date']).'</p>';
-						$total_time_records[] = $time['value'];
 					echo '<p class="col-md-3">'.$time['value'].'</p>';
 					echo '<p class="col-md-3">'.$time['created_by_name'].'</p>';
 					echo '<p class="col-md-3">'.$time['summary'].'</p>';
 				echo '</div>';
 			}
-			//print_r($total_time_records);
 		echo '</div>';
-		return array_sum($total_time_records);
 	}
 
 	private function getTotalTimeRecordsByTask($time_records){
@@ -734,7 +793,6 @@ class ActiveCollabAPI{
 	}
 	
 	private function getAllTaskList($allTaskList){
-
 		echo '<option id="">Choose Task List</option>';
 		foreach ($allTaskList as $tList) {
 			?>
