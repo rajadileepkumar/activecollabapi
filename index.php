@@ -14,6 +14,8 @@
 require_once __DIR__ . '/vendor/autoload.php';
 class ActiveCollabAPI{
 
+	private $currentListName;
+
 	function __construct(){
 		add_action( 'admin_menu', array($this,'a_collab_menu'), 10, 1 ); //admin menu
 		add_action( 'admin_enqueue_scripts', array($this,'a_collab_custom_scripts')); //load scripts
@@ -40,12 +42,19 @@ class ActiveCollabAPI{
 	}
 
 	function a_collab_menu(){
-		$menu = add_menu_page( 'Active Collab', 'Active Collab', 'manage_options', 'a_collab_menu_slug', array($this,'a_collab_menu_page'), '', null );
-		add_submenu_page( 'a_collab_menu_slug', 'Active Collab Settings', 'Settings','manage_options','a_collab_menu_settings', array($this,'a_collab_settings'));
-		add_submenu_page( '','Account Settings', 'Account Settings', 'manage_options', 'a_account_collab_settings', array($this,'a_account_collab_settings'));
+		$menu = add_menu_page( 'Active Collab', 'Active Collab', 'active_menu_access', 'a_collab_menu_slug', array($this,'a_collab_menu_page'), '', null );
+		add_submenu_page( 'a_collab_menu_slug', 'Active Collab Settings', 'Settings','active_menu_access','a_collab_menu_settings', array($this,'a_collab_settings'));
+		add_submenu_page( '','Account Settings', 'Account Settings', 'active_menu_access', 'a_account_collab_settings', array($this,'a_account_collab_settings'));
 
 		add_action( 'admin_print_styles-' . $menu, array($this,'a_collab_styles')); //to load styles page level
 		add_action('admin_print_scripts-' . $menu,array($this,'a_collab_scripts')); //to load scripts page level
+		
+		$subs = get_role('subscriber'); //roles
+		$admin = get_role('administrator'); //roles
+
+		$subs->add_cap('active_menu_access'); //access pages
+		$admin->add_cap('active_menu_access'); //access pages
+
 
 	}
 
@@ -205,6 +214,7 @@ class ActiveCollabAPI{
 
 		$totalTimeSpend = self::getTotalTimeRecordsByTask($time_records['time_records']);
 
+		//print_r($subtask_List['single']['job_type_id']);
 		$subtaskArray = array();
 		$commentsArray = array();
 		echo '<h4 class="modal-title task_main_heading">';
@@ -237,6 +247,28 @@ class ActiveCollabAPI{
 		}
 
 		?>
+			<div class="sub-task">
+    			<button class="button button-primary" data-toggle="collapse" data-target="#subtask-add">+Add a Subtask</button>
+    			<div id="subtask-add" class="collapse">
+    				<form id="addSubTask" method="post">
+    					<div class="form-group">
+    						<label for="addSubTaskName">Name of the subtask  (<span class="required-field">*</span>)</label>
+							<input type="text" class="form-control control" name="addSubTaskName" id="addSubTaskName" placeholder="Name of the subtask" required maxlength="5" minlength="1">
+    					</div>
+    					<div class="form-group">
+    						<label for="addSubTaskAssign">Choose an assignee (<span class="required-field">*</span>)</label>
+							<select class="form-control control" id="addSubTaskAssign" name="addSubTaskAssign">
+    							<?php  
+        							$allMembers = $client->get('users')->getJson(); 
+				        		    $assignee = self::getAllUsers($allMembers,$userId);
+        						?>
+							</select>
+    					</div>
+    					<input type="button" class="btn btn-primary addSubTaskToTask" id="addSubTaskToTaskList" name="addSubTaskToTaskList" value="Add subtask" onclick="javascript:addSubTaskToTaskListfun(<?php echo $subtask_List['single']['id'] ?>,document.getElementById('addSubTaskName').value,document.getElementById('addSubTaskAssign').value)">
+    				</form>
+				</div>
+    		</div>
+    		<div id="loader"></div>
 			<div class="time-task">
     			<button class="button button-primary" data-toggle="collapse" data-target="#time-tasklist">+Add Time</button>
     			<div id="time-tasklist" class="collapse">
@@ -254,7 +286,7 @@ class ActiveCollabAPI{
 							<select class="form-control control" id="job_type_id" name="job_type_id">
     							<?php  
         							$job_types = $client->get('job-types')->getJson(); 
-        							$jobtypes = self::jobtypes($job_types);
+        							$jobtypes = self::jobtypes($job_types,$subtask_List['single']['job_type_id']);
         						?>
 							</select>
     					</div>
@@ -271,28 +303,6 @@ class ActiveCollabAPI{
 				</div>
     		</div>
     		<div class="loader"></div>
-    		<div class="sub-task">
-    			<button class="button button-primary" data-toggle="collapse" data-target="#subtask-add">+Add a Subtask</button>
-    			<div id="subtask-add" class="collapse">
-    				<form id="addSubTask" method="post">
-    					<div class="form-group">
-    						<label for="addSubTaskName">Name of the subtask  (<span class="required-field">*</span>)</label>
-							<input type="text" class="form-control control" name="addSubTaskName" id="addSubTaskName" placeholder="Name of the subtask" required maxlength="5" minlength="1">
-    					</div>
-    					<div class="form-group">
-    						<label for="addSubTaskAssign">Choose an assignee (<span class="required-field">*</span>)</label>
-							<select class="form-control control" id="addSubTaskAssign" name="addSubTaskAssign">
-    							<?php  
-        							$allMembers = $client->get('users')->getJson(); 
-				        		    $assignee = self::getAllUsers($allMembers);
-        						?>
-							</select>
-    					</div>
-    					<input type="button" class="btn btn-primary addSubTaskToTask" id="addSubTaskToTaskList" name="addSubTaskToTaskList" value="Add subtask" onclick="javascript:addSubTaskToTaskListfun(<?php echo $subtask_List['single']['id'] ?>,document.getElementById('addSubTaskName').value,document.getElementById('addSubTaskAssign').value)">
-    				</form>
-				</div>
-    		</div>
-    		<div id="loader"></div>
 		<?php
 		
 		die();
@@ -373,6 +383,16 @@ class ActiveCollabAPI{
 							$optionName = 'active_collab_setting_'.$userId; //generating settings name
 							$option_exists = (get_option($optionName, null) !== null);
 							if($option_exists){
+								$token = self::a_configuration_settings();
+								print_r($token);
+								$client;
+								if($token){
+									$client = new \ActiveCollab\SDK\Client($token['0']); 
+									$projectName = $client->get('projects/'.$token['1'])->getJson();
+									$user = $token['2'];
+									$token_Id =  explode("-",$token['0']->getToken());//userid
+									print_r($token_Id);
+								}
 								?>
 									<span>Update ActiveLink Account</span>
 									<a href="<?php echo esc_url( admin_url( 'admin.php?page=a_account_collab_settings' ) )?>" class="button button-primary">Update Account</a>
@@ -392,8 +412,8 @@ class ActiveCollabAPI{
 	}
 
 	function a_collab_menu_page(){
-
-		$userId = get_current_user_id();
+		try{
+			$userId = get_current_user_id();
 		$optionName = 'active_collab_setting_'.$userId; //generating settings name
 		$option_exists = (get_option($optionName, null) !== null);
 		if($option_exists){
@@ -402,6 +422,7 @@ class ActiveCollabAPI{
 					<?php 
 						$token = self::a_configuration_settings();
 						$client;
+						
 						if($token){
 							$client = new \ActiveCollab\SDK\Client($token['0']); 
 							$projectName = $client->get('projects/'.$token['1'])->getJson();
@@ -492,7 +513,7 @@ class ActiveCollabAPI{
 												?>
 											</ul><!--main-->
 											<div class="panel-footer">
-												<a href="#" data-toggle="modal" data-target=".taskModal">+ Add a Task</a>
+												<a href="#" data-toggle="modal" class="taskListModal" data-target=".taskModal" data-tasklist="<?php echo $list['id'] ?>">+ Add a Task</a>
 											</div>
 										</div><!--inside-->
 									</div><!--panel-default-->
@@ -540,20 +561,14 @@ class ActiveCollabAPI{
 											<textarea name="addTaskDescription" id="addTaskDescription" class="form-control" placeholder="Task Description" required cols="30" rows="5"></textarea>
 										</div>
 										<div class="form-group">
-											<label for="addTaskList">Task List (<span class="required-field">*</span>)</label>
-											<select name="addTaskList" id="addTaskList" class="form-control">
-												<?php  
-				        							$allTaskList = $client->get('projects/'.$token['1'].'/task-lists')->getJson(); 
-				        							$taskList = self::getAllTaskList($allTaskList);
-				        						?>
-											</select>
+											<input type="hidden" name="currentTaskList" id="currentTaskList" class="form-control currentTaskListName" value="">
 										</div>
 										<div class="form-group">
 											<label for="addTaskAssign">Assignee (<span class="required-field">*</span>)</label>
 											<select name="addTaskAssign" id="addTaskAssign" class="form-control">
 												<?php  
 				        							$allMembers = $client->get('users')->getJson(); 
-				        							$assignee = self::getAllUsers($allMembers);
+				        							$assignee = self::getAllUsers($allMembers,$token['0']);
 				        						?>
 											</select>
 										</div>
@@ -566,7 +581,7 @@ class ActiveCollabAPI{
 												?>
 											</select>
 										</div>
-										<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary" onclick="javascript:addTaskToList(document.getElementById('addTaskName').value,document.getElementById('addTaskList').value,document.getElementById('addTaskAssign').value,document.getElementById('addTaskLabels').value,document.getElementById('addTaskDescription').value)">
+										<input type="button" name="addTask" id="addTask" value="Add Task" class="button button-primary" onclick="javascript:addTaskToList(document.getElementById('addTaskName').value,document.getElementById('currentTaskList').value,document.getElementById('addTaskAssign').value,document.getElementById('addTaskLabels').value,document.getElementById('addTaskDescription').value)">
 									</form>
 									<div class="loader"></div>
 								</div>
@@ -613,6 +628,10 @@ class ActiveCollabAPI{
 					<p>Update/Create Active Collab Settings</p>
 				</div>
 			<?php
+		}
+		}
+		catch(Exception $e){
+			echo $e->getMessage();
 		}
 	}
 
@@ -674,7 +693,11 @@ class ActiveCollabAPI{
 		if($settings){
 			$active_Unserilizedarry = unserialize($settings);
 			$authenticator = new \ActiveCollab\SDK\Authenticator\Cloud($active_Unserilizedarry['2'], 'My Awesome Application',$active_Unserilizedarry['3'],$active_Unserilizedarry['4']);
+				
+				try{
+					//print_r((object)$authenticator);
 				$token = $authenticator->issueToken((int) $active_Unserilizedarry['1']);
+				
 				if($token){
 					$user = $authenticator->getUser();
 					return array($token,$active_Unserilizedarry['5'],$user);		
@@ -682,6 +705,10 @@ class ActiveCollabAPI{
 				else{
 					print "Invalid response\n";
 	    			die();
+				}
+				}
+				catch(Exception $e){
+					echo $e->getMessage();
 				}
 		}
 		else{
@@ -723,23 +750,22 @@ class ActiveCollabAPI{
 	}
 
 	//jobtypes
-	private function jobtypes($job_types){
-		
+	private function jobtypes($job_types,$current_job_id){
 		echo '<option id="">Choose Job Type</option>';
 		foreach ($job_types as $jobs) {
 			?>
-				<option id="job_type_id" value="<?php echo $jobs['id']?>"><?php echo $jobs['name']?></option>
+				<option id="job_type_id" <?php if ($jobs['id'] == $current_job_id) echo "selected='selected'";?> value="<?php echo $jobs['id']?>"><?php echo $jobs['name']?></option>
 			<?php
 		}
 	}
 
 	//get users
-	private function getAllUsers($allMembers){
+	private function getAllUsers($allMembers,$userid){
 		
 		echo '<option id="">Choose Assignee</option>';
 		foreach ($allMembers as $users) {
 			?>
-				<option id="user_<?php echo $users['id']?>" value="<?php echo $users['id']?>"><?php echo $users['display_name']?></option>
+				<option id="user_<?php echo $users['id']?>" <?php if ($users['id'] == $userid) echo "selected='selected'";?> value="<?php echo $users['id']?>"><?php echo $users['display_name']?></option>
 			<?php
 		}
 	}
@@ -785,7 +811,7 @@ class ActiveCollabAPI{
 		echo '<option id="">Choose Label</option>';
 		foreach ($alllabels as $labels) {
 			?>
-				<option id="color_<?php echo $labels['id']?>" value="<?php echo $labels['id']?>" style="color: <?php echo $labels['color']?>">
+				<option id="color_<?php echo $labels['id']?>" <?php if ($labels['id'] == 5) echo "selected='selected'";?> value="<?php echo $labels['id']?>" style="color: <?php echo $labels['color']?>">
 					<?php echo $labels['name']?>
 				</option>
 			<?php
@@ -802,6 +828,14 @@ class ActiveCollabAPI{
 			<?php
 		}
 	}
+
+	public function setCurrentListName($currentListName){
+		$this->currentListName = $currentListName;
+	}
+
+	public function getCurrentListName(){
+        echo  $this->currentListName;
+    }
 }
 
 $obj = new ActiveCollabAPI();
